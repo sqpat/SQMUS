@@ -11,3 +11,4 @@ format dos
 name test
 
 file test.obj
+file dmx.obj

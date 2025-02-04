@@ -9,44 +9,19 @@
 #include "test.h"
 #include <sys/types.h>
 #include <string.h>
+#include "DMX.H"
 
 
 
 
-#define TRUE (1 == 1)
-#define FALSE (!TRUE)
 
 //#define LOCKMEMORY
 //#define NOINTS
 //#define USE_USRHOOKS
 
-#include <dos.h>
-#include <conio.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 
 
-
-#define BYTES_TO_ALLOCATE (4*1024*1024)
-#define PAGE_FRAME_SIZE (16*1024)
-#define EMS_INT 0x67
-
-#define false 0
-#define true 1
-
-
-#ifndef __FIXEDTYPES__
-#define __FIXEDTYPES__
-typedef signed char				int8_t;
-typedef unsigned char			uint8_t;
-typedef short					int16_t;
-typedef unsigned short			uint16_t;
-typedef long					int32_t;
-typedef unsigned long			uint32_t;
-typedef long long				int64_t;
-typedef unsigned long long		uint64_t;
-#endif
 
 
 
@@ -123,9 +98,16 @@ int16_t MUS_Parseheader(byte __far *data){
 
 }
 
+#define MUS_INTERRUPT_RATE 100 
+volatile int16_t called = 0;
+void MUS_ServiceRoutine(){
+	called = 1;
+}
 
-int16_t main(void)
-  {
+
+
+
+int16_t main(void) {
 
 		int16_t result;
 		FILE* fp = fopen("DEMO1.MUS", "rb");
@@ -134,10 +116,38 @@ int16_t main(void)
 			fseek(fp, 0, SEEK_END);
 			filesize = ftell(fp);
 			fseek(fp, 0, SEEK_SET);
-			
+			// where we're going, we don't need DOS's permission...
 			far_fread(MUS_LOCATION, filesize, 1, fp);
 			printf("Loaded DEMO1.MUS into memory location 0x%lx successfully...\n", MUS_LOCATION);
-			
+
+			printf("Scheduling interrupt\n");
+
+			TS_Startup();
+			TS_ScheduleTask(MUS_ServiceRoutine, MUS_INTERRUPT_RATE);
+			TS_Dispatch();
+			printf("Interrupt scheduled at %i interrupts per second\n", MUS_INTERRUPT_RATE);
+
+			printf("Now looping until keypress\n");
+
+			while ( !kbhit()){
+				if (called){
+					putchar('.');
+					called = 0;
+				}
+			}
+
+			printf("Detected keypress, shutting down interrupt...\n");
+
+
+			TS_SetTimerToMaxTaskRate();
+			TS_Shutdown();
+
+			printf("Shut down interrupt, exiting program...\n");
+
+
+
+
+
 
 			result = MUS_Parseheader(MUS_LOCATION);
 		} else {
