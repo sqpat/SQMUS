@@ -90,6 +90,7 @@ int16_t MUS_Parseheader(byte __far *data){
         currentsong_num_instruments     = worddata[6];  // varies..  but 0-127
         // reserved   
 
+		currentsong_playing_offset = currentsong_start_offset;
 		return 1; 
     } else {
 		return - 1;
@@ -101,6 +102,167 @@ int16_t MUS_Parseheader(byte __far *data){
 #define MUS_INTERRUPT_RATE 100 
 volatile int16_t called = 0;
 void MUS_ServiceRoutine(){
+	
+	// ok lets actually process events....
+	int16_t increment = 1; // 1 for the event
+	byte __far* currentlocation = MK_FP(MUS_SEGMENT, currentsong_playing_offset);
+	byte eventbyte = currentlocation[0];
+	byte event     = (eventbyte & 0x70) >> 4;
+	byte channel   = (eventbyte & 0x0F);
+	byte lastflag  = (eventbyte & 0x80);
+
+	printf("%x: Channel %hhi, Event %hhi:\t", currentsong_playing_offset, channel, event);
+
+	switch (event){
+		case 0:
+			// Release Note
+			{
+				byte value 			  = currentlocation[1];
+				byte notenumber		  = value & 0x7F;
+
+				// todo release notenumber
+				printf("release note 0x%hhx\n", notenumber);
+			}
+			break;
+		case 1:
+			// Play Note
+			{
+				byte value 			  = currentlocation[1];
+				byte volume;
+				byte notenumber		  = value & 0x7F;
+				if (value & 0x80){
+					volume = currentlocation[2] & 0x7F;
+					increment++;
+				} else {
+					volume = 0;		// todo: previous volume for the channel? stored?
+				}
+
+				// todo play notenumber
+				printf("play note 0x%hhx\n", notenumber);
+				increment++;
+
+			}
+
+			break;
+		case 2:
+			// Pitch Bend
+			{
+				byte value 			  = currentlocation[1];
+
+				// todo bend note
+				printf("bend channel by 0x%hhx\n", value);
+				increment++;
+
+			}
+			break;
+		case 3:
+			// System Event
+			{
+				byte controllernumber = currentlocation[1] & 0x7F;
+				if (channel == 10 && controllernumber == 120){
+					// turn all sounds off no fade
+					printf("%hhx: turn all notes off no fade", controllernumber);
+				} else if (channel == 11 && controllernumber == 123){
+					// turn all sounds off with fade
+					printf("%hhx: turn all notes off with fade", controllernumber);
+				} else if (channel == 12 && controllernumber == 126){
+					// mono (one note on channel)
+					printf("%hhx: turn channel mono", controllernumber);
+				} else if (channel == 13 && controllernumber == 127){
+					// poly (multiple notes on channel)
+					printf("%hhx: turn channel poly", controllernumber);
+				} else if (channel == 14 && controllernumber == 121){
+					// reset all controllers for this channel
+					printf("%hhx: reset all channel controllers", controllernumber);
+				} else if (channel == 15){
+					// never implemented?
+					printf("%hhx: unimplemented event?", controllernumber);
+				} else {
+					printf("BAD SYSTEM EVENT?? 0x%hhx", controllernumber);
+
+				}
+								
+				printf("\n");
+				increment++;
+			}
+
+
+			// TODO handle below cases with data byte 0
+
+			
+		case 4:
+			// Controller
+			{
+				byte controllernumber = currentlocation[1]; // values above 127 used for instrument change & 0x7F;
+				byte value 			  = currentlocation[2]; // values above 127 used for instrument change & 0x7F; ?
+				
+				if (channel == 0){
+					// change instrument
+					printf("%hhx %hhx: change instrument?", controllernumber, value);
+				} else if (channel == 1 && (controllernumber == 0 || controllernumber == 32)){
+					// bank select, 0 by default
+					printf("%hhx %hhx: bank select?", controllernumber, value);
+				} else if (channel == 2 && controllernumber == 1){
+					// modulation (vibrato frequency)
+					printf("%hhx %hhx: modulation", controllernumber, value);
+				} else if (channel == 3 && controllernumber == 7){
+					// volume 0 - 127. 100 is normal?
+					printf("%hhx %hhx: volume", controllernumber, value);
+				} else if (channel == 4 && controllernumber == 10){
+					// pan (balance) 0 left 64 center 127 right
+					printf("%hhx %hhx: pan", controllernumber, value);
+				} else if (channel == 5 && controllernumber == 11){
+					// expression
+					printf("%hhx %hhx: expression", controllernumber, value);
+				} else if (channel == 6 && controllernumber == 91){
+					// reverb depth
+					printf("%hhx %hhx: reverb", controllernumber, value);
+				} else if (channel == 7 && controllernumber == 93){
+					// chorus depth
+					printf("%hhx %hhx: chorus", controllernumber, value);
+				} else if (channel == 8 && controllernumber == 64){
+					// sustain pedal
+					printf("%hhx %hhx: sustain pedal", controllernumber, value);
+				} else if (channel == 9 && controllernumber == 67){
+					// soft pedal
+					printf("%hhx %hhx: soft pedal", controllernumber, value);
+				} else {
+					printf("%hhx %hhx: BAD CONTROLLER?", controllernumber, value);
+
+				}
+				
+				printf("\n");
+				// todo silently skip event 3 cases
+
+				increment++;
+				increment++;
+			}
+			break;
+		case 5:
+			// End of Measure
+			// do nothing..
+			printf("End of Measure\n");
+
+			break;
+		case 6:
+			// Finish
+			printf("Song over\n");
+			if (currentsong_looping){
+				// is this right?
+				printf("LOOP SONG!\n");
+				currentsong_playing_offset = currentsong_start_offset;
+				return;
+			}
+			break;
+		case 7:
+			// Unused
+			printf("UNUSED EVENT 7?\n");
+			increment++;   // advance for one data byte
+			break;
+	}
+
+	
+	currentsong_playing_offset += increment;
 	called = 1;
 }
 
@@ -131,7 +293,6 @@ int16_t main(void) {
 
 			while ( !kbhit()){
 				if (called){
-					putchar('.');
 					called = 0;
 				}
 			}
@@ -139,7 +300,6 @@ int16_t main(void) {
 			printf("Detected keypress, shutting down interrupt...\n");
 
 
-			TS_SetTimerToMaxTaskRate();
 			TS_Shutdown();
 
 			printf("Shut down interrupt, exiting program...\n");

@@ -51,11 +51,8 @@ void TS_FreeTaskList(void){
 void TS_SetClockSpeed(int32_t speed){
 
 	_disable();
-	if ((speed > 0) && (speed < 0x10000L)) {
-		TaskServiceRate = speed;
-	} else {
-		TaskServiceRate = 0x10000L;
-	}
+
+	TaskServiceRate = speed;
 
 	outp(0x43, 0x36);
 	outp(0x40, TaskServiceRate);			// todo will this work 16 bit
@@ -70,9 +67,7 @@ uint16_t TS_SetTimer(int32_t TickBase){
 	//speed = 1192030L / 35;
 	// ~ 34058
 
-	if (speed < TaskServiceRate) {
-		TS_SetClockSpeed(speed);
-	}
+	TS_SetClockSpeed(speed);
 
 	return (speed);
 }
