@@ -1,5 +1,6 @@
 #include "sqmus.h"
 #include "test.h"
+#include <conio.h>
 
 
 static uint16_t OctavePitch[OCTAVE_COUNT] = {
@@ -342,82 +343,43 @@ AdLibVoiceList Voice_Pool;
 #define NULL 0
 
 
-/// TODO: I hate this. rewrite.
+void AL_Remove (AdLibVoiceList* listhead, AdLibVoice * item) {
+    AdLibVoice **head = &listhead->start;
+    AdLibVoice **tail = &listhead->end;
 
+    if (item->prev == NULL) {
+        *head = item->next;
+    } else {
+        item->prev->next = item->next;
+    }
 
-#define OFFSET( structure, offset ) \
-   ( *( ( char ** )&( structure )[ offset ] ) )
+    if (item->next == NULL){
+        *tail = item->prev;
+    } else {
+        item->next->prev = item->prev;
+    }
 
-#define AL_AddToTail( type, listhead, node )         \
-    AL_AddNode( ( char * )( node ),                  \
-                ( char ** )&( ( listhead )->end ),   \
-                ( char ** )&( ( listhead )->start ), \
-                ( int16_t )&( ( type * ) 0 )->prev,      \
-                ( int16_t )&( ( type * ) 0 )->next )
+    item->next = NULL;
+    item->prev = NULL;
 
-#define AL_Remove( type, listhead, node )               \
-    AL_RemoveNode( ( char * )( node ),                  \
-                   ( char ** )&( ( listhead )->start ), \
-                   ( char ** )&( ( listhead )->end ),   \
-                   ( int16_t )&( ( type * ) 0 )->next,      \
-                   ( int16_t )&( ( type * ) 0 )->prev )
+}
+void AL_AddToTail (AdLibVoiceList* listhead, AdLibVoice * item) {
+   AdLibVoice **head = &listhead->end;
+   AdLibVoice **tail = &listhead->start;
 
-void AL_RemoveNode
-   (
-   char *item,
-   char **head,
-   char **tail,
-   int next,
-   int prev
-   )
+   item->next = NULL;
+   item->prev = *head;
 
-   {
-   if ( OFFSET( item, prev ) == NULL )
-      {
-      *head = OFFSET( item, next );
-      }
-   else
-      {
-      OFFSET( OFFSET( item, prev ), next ) = OFFSET( item, next );
-      }
+    if (*head) {
+        (*head)->next = item;
+    } else {
+        *tail = item;
+    }
 
-   if ( OFFSET( item, next ) == NULL )
-      {
-      *tail = OFFSET( item, prev );
-      }
-   else
-      {
-      OFFSET( OFFSET( item, next ), prev ) = OFFSET( item, prev );
-      }
+    *head = item;
 
-   OFFSET( item, next ) = NULL;
-   OFFSET( item, prev ) = NULL;
-   }
+}
 
-void AL_AddNode
-   (
-   char *item,
-   char **head,
-   char **tail,
-   int next,
-   int prev
-   )
-
-   {
-   OFFSET( item, prev ) = NULL;
-   OFFSET( item, next ) = *head;
-
-   if ( *head )
-      {
-      OFFSET( *head, prev ) = item;
-      }
-   else
-      {
-      *tail = item;
-      }
-
-   *head = item;
-   }
 
 
 
@@ -432,7 +394,7 @@ int8_t AL_AllocVoice() {
 
     if (Voice_Pool.start) {
         voice = Voice_Pool.start->num;
-        AL_Remove(AdLibVoice, &Voice_Pool, &AdLibVoices[voice]);
+        AL_Remove(&Voice_Pool, &AdLibVoices[voice]);
         return voice ;
     }
 
@@ -465,7 +427,7 @@ int8_t AL_GetVoice(uint8_t channel, uint8_t key) {
 
 
 
-int16_t adlib_device = 0; // todo
+int16_t adlib_device = 1; // todo
 
 void AL_SendOutput(uint8_t voiceport, uint8_t reg, uint8_t data){
     int16_t usereg = reg;
@@ -474,6 +436,7 @@ void AL_SendOutput(uint8_t voiceport, uint8_t reg, uint8_t data){
     }
     if(adlib_device){
         //chip->fm_writereg(usereg, data);
+        outp(usereg, data);
     }
 }
 
@@ -712,10 +675,10 @@ void AL_NoteOff (uint8_t channel, uint8_t key) {
     port = AdLibVoices[voice].port;
     voc  = (voice >= VOICE_COUNT) ? voice - VOICE_COUNT : voice;
 
-    AL_SendOutput(port, 0xB0 + voc, AdLibVoices[voice].pitchleft.b.bytehigh );
+    AL_SendOutput(port, 0xB0 + voc, AdLibVoices[voice].pitchleft.b.bytehigh);
 
-    AL_Remove(AdLibVoice, &AdLibChannels[channel].Voices, &AdLibVoices[voice]);
-    AL_AddToTail(AdLibVoice, &Voice_Pool, &AdLibVoices[voice]);
+    AL_Remove(&AdLibChannels[channel].Voices, &AdLibVoices[voice]);
+    AL_AddToTail(&Voice_Pool, &AdLibVoices[voice]);
 }
 
 void AL_NoteOn (uint8_t channel, uint8_t key, uint8_t velocity) {
@@ -749,7 +712,7 @@ void AL_NoteOn (uint8_t channel, uint8_t key, uint8_t velocity) {
     AdLibVoices[voice].velocity = velocity;
     AdLibVoices[voice].status   = NOTE_ON;
 
-    AL_AddToTail(AdLibVoice, &AdLibChannels[channel].Voices, &AdLibVoices[voice]);
+    AL_AddToTail(&AdLibChannels[channel].Voices, &AdLibVoices[voice]);
 
     AL_SetVoiceTimbre(voice);
     AL_SetVoiceVolume(voice);

@@ -1,7 +1,7 @@
 Open Watcom Linker Version 2.0 beta Sep  3 2024 02:05:05 (32-bit)
 Copyright (c) 2002-2024 The Open Watcom Contributors. All Rights Reserved.
 Portions Copyright (c) 1985-2002 Sybase, Inc. All Rights Reserved.
-Created on:       25/02/05 11:05:58
+Created on:       25/02/05 11:43:07
 Executable Image: test.exe
 creating a DOS executable
 
@@ -25,7 +25,7 @@ Segment                Class          Group          Address         Size
 =======                =====          =====          =======         ====
 
 test_TEXT              CODE           AUTO           0000:0000       0000062d
-sqmus_TEXT             CODE           AUTO           0000:0630       000007a6
+sqmus_TEXT             CODE           AUTO           0000:0630       000007a8
 dmx_TEXT               CODE           AUTO           0000:0de0       000001fd
 _TEXT                  CODE           AUTO           0000:0fe0       0000342e
 FAR_DATA               FAR_DATA       AUTO           0440:000e       00000000
@@ -78,20 +78,20 @@ Module: test.obj(C:\SQMUS\test.c)
 0000:0538      main_
 0441:0520+     _called
 Module: sqmus.obj(C:\SQMUS\sqmus.c)
-0000:0630+     AL_RemoveNode_
-0000:0692+     AL_AddNode_
-0000:06be+     AL_AllocVoice_
-0000:0708+     AL_GetVoice_
-0000:072e*     AL_SendOutput_
-0000:0736+     AL_SetVoicePan_
-0000:07b6+     AL_SetVoicePitch_
-0000:08f4+     AL_SetVoiceVolume_
-0000:0a78+     AL_SetVoiceTimbre_
-0000:0c48+     AL_NoteOff_
-0000:0cfe*     AL_NoteOn_
+0000:0630+     AL_Remove_
+0000:066c+     AL_AddToTail_
+0000:0690+     AL_AllocVoice_
+0000:06c2+     AL_GetVoice_
+0000:06ee+     AL_SendOutput_
+0000:0706+     AL_SetVoicePan_
+0000:078a+     AL_SetVoicePitch_
+0000:08d0+     AL_SetVoiceVolume_
+0000:0a5c+     AL_SetVoiceTimbre_
+0000:0c68+     AL_NoteOff_
+0000:0d0e*     AL_NoteOn_
 0441:0868+     _ADLIB_TimbreBank
 0441:1568+     _MAX_MUS_CHANNEL
-0441:156a*     _adlib_device
+0441:156a+     _adlib_device
 0441:17bc+     _AdLibChannels
 0441:19ac+     _Voice_Pool
 0441:19b0+     _AdLibVoiceLevels
@@ -403,4 +403,4 @@ C:\WATCOM2\lib286\dos\clibm.lib
 Stack size:  1000 (4096.)
 Memory size:  7080 (28800.)
 Entry point address: 0000:18b8
-Link time: 00:00.10
+Link time: 00:00.09

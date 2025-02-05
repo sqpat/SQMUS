@@ -19,6 +19,7 @@ typedef long long				int64_t;
 typedef unsigned long long		uint64_t;
 #endif
 
+typedef  char					byte;
 
 
 typedef union _fixed_t_union {
