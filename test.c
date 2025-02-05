@@ -77,6 +77,10 @@ uint16_t currentsong_primary_channels;
 uint16_t currentsong_secondary_channels;
 uint16_t currentsong_num_instruments;       // 0-127
 
+uint16_t currentsong_play_timer;
+uint16_t currentsong_int_count;
+int16_t currentsong_ticks_to_process;
+
 
 #define MUS_SEGMENT 	0x6000
 #define MUS_LOCATION    (byte __far *) MK_FP(MUS_SEGMENT, 0x000)
@@ -99,6 +103,9 @@ int16_t MUS_Parseheader(byte __far *data){
 
 
 		currentsong_playing_offset = currentsong_start_offset;
+		currentsong_play_timer = 0;
+		currentsong_int_count = 0;
+		currentsong_ticks_to_process = 0;
 		return 1; 
     } else {
 		printf("Bad header %x %x", worddata[0], worddata[1]);
@@ -184,144 +191,159 @@ int16_t MUS_ProcessSystemEvent(byte channel, byte controllernumber){
 	return 1;
 }
 
+
+
+
 void MUS_ServiceRoutine(){
 	
-	// ok lets actually process events....
-	int16_t increment = 1; // 1 for the event
-	byte doing_loop = false;
-	byte __far* currentlocation = MK_FP(MUS_SEGMENT, currentsong_playing_offset);
-	byte eventbyte = currentlocation[0];
-	byte event     = (eventbyte & 0x70) >> 4;
-	byte channel   = (eventbyte & 0x0F);
-	byte lastflag  = (eventbyte & 0x80);
-	uint32_t delay_amt = 0;
+	// TODO: actually get the proper amount of time to pass.
+	currentsong_ticks_to_process += MUS_INTERRUPT_RATE;
+	printf("INT CALLED (#%i) \n", currentsong_int_count);
 
-	printf("%04x: Last: %hhi Channel %hhi, Event %hhi:\t", currentsong_playing_offset, (lastflag != 0), channel, event);
+	while (currentsong_ticks_to_process >= 0){
 
-	switch (event){
-		case 0:
-			// Release Note
-			{
-				byte value 			  = currentlocation[1];
-				byte notenumber		  = value & 0x7F;
+		// ok lets actually process events....
+		int16_t increment = 1; // 1 for the event
+		byte doing_loop = false;
+		byte __far* currentlocation = MK_FP(MUS_SEGMENT, currentsong_playing_offset);
+		byte eventbyte = currentlocation[0];
+		byte event     = (eventbyte & 0x70) >> 4;
+		byte channel   = (eventbyte & 0x0F);
+		byte lastflag  = (eventbyte & 0x80);
+		uint32_t delay_amt = 0;
 
-				// todo release notenumber
-				printf("release note 0x%hhx\n", notenumber);
-			}
-			increment++;
-			break;
-		case 1:
-			// Play Note
-			{
-				byte value 			  = currentlocation[1];
-				byte volume;
-				byte notenumber		  = value & 0x7F;
-				if (value & 0x80){
-					volume = currentlocation[2] & 0x7F;
-					increment++;
-				} else {
-					volume = 0;		// todo: previous volume for the channel? stored?
+		printf("%04x: %02x L: %hhi C: %hhi, EV: %hhi:\t", currentsong_playing_offset, eventbyte, (lastflag != 0), channel, event);
+
+		switch (event){
+			case 0:
+				// Release Note
+				{
+					byte value 			  = currentlocation[1];
+					byte notenumber		  = value & 0x7F;
+
+					// todo release notenumber
+					printf("release note 0x%hhx\n", notenumber);
 				}
-
-				// todo play notenumber
-				printf("play note 0x%hhx\n", notenumber);
 				increment++;
-
-			}
-
-			break;
-		case 2:
-			// Pitch Bend
-			{
-				byte value 			  = currentlocation[1];
-
-				// todo bend note
-				printf("bend channel by 0x%hhx\n", value);
-				increment++;
-
-			}
-			break;
-		case 3:
-			// System Event
-			{
-				byte controllernumber = currentlocation[1] & 0x7F;
-				int16_t result = MUS_ProcessSystemEvent(channel, controllernumber);
-				if (!result){
-					// or do we read value?
-					byte value = 0;
-					result =  MUS_ProcessControllerEvent(channel, controllernumber, value);
-					if (!result){
-						printf("BAD SYSTEM EVENT?? 0x%hhx %0x", controllernumber, value);
-					}
-				}
-								
-				printf("\n");
-				increment++;
-			}
-
-			break;
-			
-		case 4:
-			// Controller
-			{
-				byte value 			  = currentlocation[1]; // values above 127 used for instrument change & 0x7F; ?
-				byte controllernumber = currentlocation[2]; // values above 127 used for instrument change & 0x7F;
-				int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, value);
-				if (!result){
-					result = MUS_ProcessSystemEvent(channel, controllernumber);
-					if (!result){
-						printf("BAD SYSTEM EVENT?? 0x%hhx %0x", controllernumber, value);
-					}
-
-				}
-						
-				
-				printf("\n");
-
-				increment++;
-				increment++;
-			}
-			break;
-		case 5:
-			// End of Measure
-			// do nothing..
-			printf("End of Measure\n");
-
-			break;
-		case 6:
-			// Finish
-			printf("Song over\n");
-			if (currentsong_looping){
-				// is this right?
-				printf("LOOP SONG!\n");
-				doing_loop = true;
 				break;
-			}
-			break;
-		case 7:
-			// Unused
-			printf("UNUSED EVENT 7?\n");
-			increment++;   // advance for one data byte
-			break;
-	}
+			case 1:
+				// Play Note
+				{
+					byte value 			  = currentlocation[1];
+					byte volume;
+					byte notenumber		  = value & 0x7F;
+					if (value & 0x80){
+						volume = currentlocation[2] & 0x7F;
+						increment++;
+					} else {
+						volume = 0;		// todo: previous volume for the channel? stored?
+					}
 
-	currentsong_playing_offset += increment;
+					// todo play notenumber
+					printf("play note 0x%hhx\n", notenumber);
+					increment++;
 
-	while (lastflag){
-		currentlocation = MK_FP(MUS_SEGMENT, currentsong_playing_offset);
-		delay_amt <<= 8;
-		lastflag = currentlocation[0];
-		delay_amt += (lastflag &0x7F);
-		printf("  Read delay byte: 0x%x current delay: 0x%lx \n", lastflag, delay_amt);
-		lastflag &= 0x80;
-		currentsong_playing_offset++;
-	}
+				}
 
-	//todo how to handle loop/end song plus last flag?
-	if (doing_loop){
-		currentsong_playing_offset = currentsong_start_offset;
+				break;
+			case 2:
+				// Pitch Bend
+				{
+					byte value 			  = currentlocation[1];
+
+					// todo bend note
+					printf("bend channel by 0x%hhx\n", value);
+					increment++;
+
+				}
+				break;
+			case 3:
+				// System Event
+				{
+					byte controllernumber = currentlocation[1] & 0x7F;
+					int16_t result = MUS_ProcessSystemEvent(channel, controllernumber);
+					if (!result){
+						// or do we read value?
+						byte value = 0;
+						result =  MUS_ProcessControllerEvent(channel, controllernumber, value);
+						if (!result){
+							printf("BAD SYSTEM EVENT?? 0x%hhx %0x", controllernumber, value);
+						}
+					}
+									
+					printf("\n");
+					increment++;
+				}
+
+				break;
+				
+			case 4:
+				// Controller
+				{
+					byte value 			  = currentlocation[1]; // values above 127 used for instrument change & 0x7F; ?
+					byte controllernumber = currentlocation[2]; // values above 127 used for instrument change & 0x7F;
+					int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, value);
+					if (!result){
+						result = MUS_ProcessSystemEvent(channel, controllernumber);
+						if (!result){
+							printf("BAD SYSTEM EVENT?? 0x%hhx %0x", controllernumber, value);
+						}
+
+					}
+							
+					
+					printf("\n");
+
+					increment++;
+					increment++;
+				}
+				break;
+			case 5:
+				// End of Measure
+				// do nothing..
+				printf("End of Measure\n");
+
+				break;
+			case 6:
+				// Finish
+				printf("Song over\n");
+				if (currentsong_looping){
+					// is this right?
+					printf("LOOP SONG!\n");
+					doing_loop = true;
+					break;
+				}
+				break;
+			case 7:
+				// Unused
+				printf("UNUSED EVENT 7?\n");
+				increment++;   // advance for one data byte
+				break;
+		}
+
+		currentsong_playing_offset += increment;
+
+		while (lastflag){
+			currentlocation = MK_FP(MUS_SEGMENT, currentsong_playing_offset);
+			delay_amt <<= 8;
+			lastflag = currentlocation[0];
+			delay_amt += (lastflag &0x7F);
+			printf("  Read delay byte: 0x%x current delay: 0x%lx \n", lastflag, delay_amt);
+			lastflag &= 0x80;
+			currentsong_playing_offset++;
+		}
+
+		currentsong_ticks_to_process -= delay_amt;
+
+		//todo how to handle loop/end song plus last flag?
+		if (doing_loop){
+			currentsong_playing_offset = currentsong_start_offset;
+		}
+
 	}
+	printf("INT DONE (#%i) \n", currentsong_int_count);
 	called = 1;
+	currentsong_int_count++;
 }
 
 
