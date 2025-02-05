@@ -57,6 +57,23 @@ typedef union _fixed_t_union {
 
 } fixed_t_union;
 
+
+typedef union _int16_t_union {
+	uint16_t hu;
+	int16_t h;
+
+	struct dual_int8_t {
+		int8_t bytelow;
+		int8_t bytehigh;
+	} b;
+
+	struct dual_uint8_t {
+		uint8_t bytelow;
+		uint8_t bytehigh;
+	} bu;
+
+} int16_t_union;
+
 #define TRUE (1 == 1)
 #define FALSE (!TRUE)
 

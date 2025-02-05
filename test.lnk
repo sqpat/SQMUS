@@ -11,4 +11,5 @@ format dos
 name test
 
 file test.obj
+file sqmus.obj
 file dmx.obj

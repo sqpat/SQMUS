@@ -44,6 +44,12 @@ static uint16_t pageframebase;
  
  
 
+void ADLib_PlayNote(byte channel, byte key, byte volume){
+	
+
+}
+
+
 
 #define FREAD_BUFFER_SIZE 512
 
