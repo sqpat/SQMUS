@@ -84,3 +84,4 @@ typedef struct {
 #define NOTE_ON         0x2000  /* Used to turn note on or toggle note */
 #define NOTE_OFF        0x0000
 
+int16_t AL_Init();

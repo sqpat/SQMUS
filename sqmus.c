@@ -339,6 +339,9 @@ AdLibTimbre ADLIB_TimbreBank[256] = {
 };
 
 
+#define AL_LeftPort    0x388
+#define AL_RightPort   0x388
+
 int8_t MAX_MUS_CHANNEL = 10;
 #define VOICE_NOT_FOUND -1
 
@@ -347,6 +350,7 @@ AdLibChannel   AdLibChannels[CHANNEL_COUNT];
 uint8_t        AdLibVoiceLevels[NumChipSlots][2];
 uint8_t        AdLibVoiceKsls[NumChipSlots][2];
 uint8_t        AdLibVoiceReserved[VOICE_COUNT * 2];
+int8_t         AdLibStereoOn = 0;
 AdLibVoiceList Voice_Pool;
 //#define NULL 0
 
@@ -437,16 +441,41 @@ int8_t AL_GetVoice(uint8_t channel, uint8_t key) {
 
 int16_t adlib_device = 1; // todo
 
-#define AL_SendOutputToPort AL_SendOutput
 
-void AL_SendOutput(uint8_t voiceport, uint8_t reg, uint8_t data){
-    int16_t usereg = reg;
-    if(voiceport){
-        usereg |= 0x100;
+void AL_SendOutputToPort(int16_t port, uint8_t reg, uint8_t data) {
+   int8_t delay;
+
+   outp(port, reg);
+
+   //   for( delay = 2; delay > 0 ; delay-- )
+    for (delay = 6; delay > 0; delay--) {
+        inp(port);
     }
+
+    outp(port + 1, data);
+
+    //   for( delay = 35; delay > 0 ; delay-- )
+    for (delay = 27; delay > 0; delay--){
+    //   for( delay = 2; delay > 0 ; delay-- )
+        inp(port);
+    }
+}
+
+
+
+void AL_SendOutput(uint8_t voice, uint8_t reg, uint8_t data){
+
     if(adlib_device){
         //chip->fm_writereg(usereg, data);
-        outp(usereg, data);
+        //outp(usereg, data);
+        if (AdLibStereoOn){
+            AL_SendOutputToPort(AL_LeftPort, reg, data);
+            AL_SendOutputToPort(AL_RightPort, reg, data);
+        } else {
+            int16_t useport = (voice == 0) ? AL_RightPort : AL_LeftPort;
+            AL_SendOutputToPort(useport, reg, data);
+
+        }
     }
 }
 
@@ -824,6 +853,7 @@ void AL_FlushCard(int8_t port){
 void AL_StereoOn() {
     // Set card to OPL3 operation
     AL_SendOutputToPort(1, 0x5, 1);
+    AdLibStereoOn = true;
 }
 
 
@@ -836,6 +866,7 @@ void AL_StereoOn() {
 void AL_StereoOff() {
     // Set card back to OPL2 operation
     AL_SendOutputToPort(1, 0x5, 0);
+    AdLibStereoOn = false;
 }
 
 
@@ -882,16 +913,19 @@ int16_t AL_InitSynth() {
    Begins use of the sound card.
 ---------------------------------------------------------------------*/
 
-int16_t midi_init (uint16_t rate) {
+int16_t AL_Init (uint16_t rate) {
 
-    chip = getchip();
-    if (!chip || !chip->fm_init(rate)){
+/*
+    if (fm_init(rate)){
         return 0;
     }
+*/
+
 
     // fat timbre contents are ADLIB_TimbreBank by default
     //memcpy(&ADLIB_TimbreBank, &FatTimbre, sizeof(FatTimbre));    
     //AL_LoadBank("APOGEE.TMB");
+    
     return AL_InitSynth();
 }
 

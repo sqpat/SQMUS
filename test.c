@@ -7,6 +7,7 @@
 
 #include <i86.h>
 #include "test.h"
+#include "sqmus.h"
 #include <sys/types.h>
 #include <string.h>
 #include "DMX.H"
@@ -26,7 +27,6 @@
 
 
 
-typedef uint8_t byte;
 #define I_Error printf
 // REGS stuff used for int calls
 union REGS regs;
@@ -44,10 +44,6 @@ static uint16_t pageframebase;
  
  
 
-void ADLib_PlayNote(byte channel, byte key, byte volume){
-	
-
-}
 
 
 
@@ -374,10 +370,18 @@ int16_t main(void) {
 			fseek(fp, 0, SEEK_SET);
 			// where we're going, we don't need DOS's permission...
 			far_fread(MUS_LOCATION, filesize, 1, fp);
-
+			fclose(fp);
 			result = MUS_Parseheader(MUS_LOCATION);
 
 			printf("Loaded DEMO1.MUS into memory location 0x%lx successfully...\n", MUS_LOCATION);
+
+			printf("Enabling AdLib...\n");
+		 	if (!AL_Init()){
+				printf("Error enabling adlib!\n");
+        		return 0;
+				
+			}
+
 
 			printf("Scheduling interrupt\n");
 
