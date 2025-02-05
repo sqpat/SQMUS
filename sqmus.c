@@ -339,17 +339,141 @@ uint8_t        AdLibVoiceLevels[NumChipSlots][2];
 uint8_t        AdLibVoiceKsls[NumChipSlots][2];
 uint8_t        AdLibVoiceReserved[VOICE_COUNT * 2];
 AdLibVoiceList Voice_Pool;
+#define NULL 0
 
-fm_chip* chip;
 
+/// TODO: I hate this. rewrite.
+
+
+#define OFFSET( structure, offset ) \
+   ( *( ( char ** )&( structure )[ offset ] ) )
+
+#define AL_AddToTail( type, listhead, node )         \
+    AL_AddNode( ( char * )( node ),                  \
+                ( char ** )&( ( listhead )->end ),   \
+                ( char ** )&( ( listhead )->start ), \
+                ( int16_t )&( ( type * ) 0 )->prev,      \
+                ( int16_t )&( ( type * ) 0 )->next )
+
+#define AL_Remove( type, listhead, node )               \
+    AL_RemoveNode( ( char * )( node ),                  \
+                   ( char ** )&( ( listhead )->start ), \
+                   ( char ** )&( ( listhead )->end ),   \
+                   ( int16_t )&( ( type * ) 0 )->next,      \
+                   ( int16_t )&( ( type * ) 0 )->prev )
+
+void AL_RemoveNode
+   (
+   char *item,
+   char **head,
+   char **tail,
+   int next,
+   int prev
+   )
+
+   {
+   if ( OFFSET( item, prev ) == NULL )
+      {
+      *head = OFFSET( item, next );
+      }
+   else
+      {
+      OFFSET( OFFSET( item, prev ), next ) = OFFSET( item, next );
+      }
+
+   if ( OFFSET( item, next ) == NULL )
+      {
+      *tail = OFFSET( item, prev );
+      }
+   else
+      {
+      OFFSET( OFFSET( item, next ), prev ) = OFFSET( item, prev );
+      }
+
+   OFFSET( item, next ) = NULL;
+   OFFSET( item, prev ) = NULL;
+   }
+
+void AL_AddNode
+   (
+   char *item,
+   char **head,
+   char **tail,
+   int next,
+   int prev
+   )
+
+   {
+   OFFSET( item, prev ) = NULL;
+   OFFSET( item, next ) = *head;
+
+   if ( *head )
+      {
+      OFFSET( *head, prev ) = item;
+      }
+   else
+      {
+      *tail = item;
+      }
+
+   *head = item;
+   }
+
+
+
+/*---------------------------------------------------------------------
+   Function: AL_AllocVoice
+
+   Retrieves a free voice from the voice pool.
+---------------------------------------------------------------------*/
+
+int8_t AL_AllocVoice() {
+    int8_t voice;
+
+    if (Voice_Pool.start) {
+        voice = Voice_Pool.start->num;
+        AL_Remove(AdLibVoice, &Voice_Pool, &AdLibVoices[voice]);
+        return voice ;
+    }
+
+    return VOICE_NOT_FOUND;
+}
+
+
+/*---------------------------------------------------------------------
+   Function: AL_GetVoice
+
+   Determines which voice is associated with a specified note and
+   MIDI channel.
+---------------------------------------------------------------------*/
+
+
+
+int8_t AL_GetVoice(uint8_t channel, uint8_t key) {
+    AdLibVoice *voice;
+    voice = AdLibChannels[channel].Voices.start;
+
+    while(voice != NULL) {
+        if (voice->key == key) {
+            return voice->num;
+        }
+        voice = voice->next;
+    }
+
+    return VOICE_NOT_FOUND;
+}
+
+
+
+int16_t adlib_device = 0; // todo
 
 void AL_SendOutput(uint8_t voiceport, uint8_t reg, uint8_t data){
     int16_t usereg = reg;
     if(voiceport){
         usereg |= 0x100;
     }
-    if(chip){
-        chip->fm_writereg(usereg, data);
+    if(adlib_device){
+        //chip->fm_writereg(usereg, data);
     }
 }
 

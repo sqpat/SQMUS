@@ -33,7 +33,7 @@ typedef struct AdLibVoice   {
    struct AdLibVoice *next;
    struct AdLibVoice *prev;
 
-   uint8_t     num;
+   int8_t      num;
    uint8_t     key;
    uint8_t     velocity;
    uint8_t     channel;
