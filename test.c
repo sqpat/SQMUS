@@ -114,13 +114,15 @@ void MUS_ServiceRoutine(){
 	
 	// ok lets actually process events....
 	int16_t increment = 1; // 1 for the event
+	byte doing_loop = false;
 	byte __far* currentlocation = MK_FP(MUS_SEGMENT, currentsong_playing_offset);
 	byte eventbyte = currentlocation[0];
 	byte event     = (eventbyte & 0x70) >> 4;
 	byte channel   = (eventbyte & 0x0F);
 	byte lastflag  = (eventbyte & 0x80);
+	uint32_t delay_amt = 0;
 
-	printf("%x: Channel %hhi, Event %hhi:\t", currentsong_playing_offset, channel, event);
+	printf("%04x: Last: %hhi Channel %hhi, Event %hhi:\t", currentsong_playing_offset, (lastflag != 0), channel, event);
 
 	switch (event){
 		case 0:
@@ -259,8 +261,8 @@ void MUS_ServiceRoutine(){
 			if (currentsong_looping){
 				// is this right?
 				printf("LOOP SONG!\n");
-				currentsong_playing_offset = currentsong_start_offset;
-				return;
+				doing_loop = true;
+				break;
 			}
 			break;
 		case 7:
@@ -270,8 +272,22 @@ void MUS_ServiceRoutine(){
 			break;
 	}
 
-	
 	currentsong_playing_offset += increment;
+
+	while (lastflag){
+		currentlocation = MK_FP(MUS_SEGMENT, currentsong_playing_offset);
+		delay_amt <<= 8;
+		lastflag = currentlocation[0];
+		delay_amt += (lastflag &0x7F);
+		printf("  Read delay byte: 0x%x current delay: 0x%lx \n", lastflag, delay_amt);
+		lastflag &= 0x80;
+		currentsong_playing_offset++;
+	}
+
+	//todo how to handle loop/end song plus last flag?
+	if (doing_loop){
+		currentsong_playing_offset = currentsong_start_offset;
+	}
 	called = 1;
 }
 
