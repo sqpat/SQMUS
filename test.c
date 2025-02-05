@@ -110,6 +110,80 @@ int16_t MUS_Parseheader(byte __far *data){
 
 #define MUS_INTERRUPT_RATE 100 
 volatile int16_t called = 0;
+
+int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, byte value){
+
+	// todo combine bytes and switch case a word
+
+	if (channel == 0){
+		// change instrument
+		printf("%hhx %hhx: change instrument?", controllernumber, value);
+	} else if (channel == 1 && (controllernumber == 0 || controllernumber == 32)){
+		// bank select, 0 by default
+		printf("%hhx %hhx: bank select?", controllernumber, value);
+	} else if (channel == 2 && controllernumber == 1){
+		// modulation (vibrato frequency)
+		printf("%hhx %hhx: modulation", controllernumber, value);
+	} else if (channel == 3 && controllernumber == 7){
+		// volume 0 - 127. 100 is normal?
+		printf("%hhx %hhx: volume", controllernumber, value);
+	} else if (channel == 4 && controllernumber == 10){
+		// pan (balance) 0 left 64 center 127 right
+		printf("%hhx %hhx: pan", controllernumber, value);
+	} else if (channel == 5 && controllernumber == 11){
+		// expression
+		printf("%hhx %hhx: expression", controllernumber, value);
+	} else if (channel == 6 && controllernumber == 91){
+		// reverb depth
+		printf("%hhx %hhx: reverb", controllernumber, value);
+	} else if (channel == 7 && controllernumber == 93){
+		// chorus depth
+		printf("%hhx %hhx: chorus", controllernumber, value);
+	} else if (channel == 8 && controllernumber == 64){
+		// sustain pedal
+		printf("%hhx %hhx: sustain pedal", controllernumber, value);
+	} else if (channel == 9 && controllernumber == 67){
+		// soft pedal
+		printf("%hhx %hhx: soft pedal", controllernumber, value);
+	} else {
+		//printf("%hhx %hhx: BAD CONTROLLER?", controllernumber, value);
+		return 0;
+	}
+
+	return 1;
+}
+
+int16_t MUS_ProcessSystemEvent(byte channel, byte controllernumber){
+
+	// todo combine bytes and switch case a word
+
+	if (channel == 10 && controllernumber == 120){
+		// turn all sounds off no fade
+		printf("%hhx: turn all notes off no fade", controllernumber);
+	} else if (channel == 11 && controllernumber == 123){
+		// turn all sounds off with fade
+		printf("%hhx: turn all notes off with fade", controllernumber);
+	} else if (channel == 12 && controllernumber == 126){
+		// mono (one note on channel)
+		printf("%hhx: turn channel mono", controllernumber);
+		// IGNORED in midi mode. used by opl2
+	} else if (channel == 13 && controllernumber == 127){
+		// poly (multiple notes on channel)
+		printf("%hhx: turn channel poly", controllernumber);
+		// IGNORED in midi mode. used by opl2
+	} else if (channel == 14 && controllernumber == 121){
+		// reset all controllers for this channel
+		printf("%hhx: reset all channel controllers", controllernumber);
+	} else if (channel == 15){
+		// never implemented?
+		printf("%hhx: unimplemented event?", controllernumber);
+	} else {
+		return 0;
+	}
+
+	return 1;
+}
+
 void MUS_ServiceRoutine(){
 	
 	// ok lets actually process events....
@@ -134,6 +208,7 @@ void MUS_ServiceRoutine(){
 				// todo release notenumber
 				printf("release note 0x%hhx\n", notenumber);
 			}
+			increment++;
 			break;
 		case 1:
 			// Play Note
@@ -170,80 +245,38 @@ void MUS_ServiceRoutine(){
 			// System Event
 			{
 				byte controllernumber = currentlocation[1] & 0x7F;
-				if (channel == 10 && controllernumber == 120){
-					// turn all sounds off no fade
-					printf("%hhx: turn all notes off no fade", controllernumber);
-				} else if (channel == 11 && controllernumber == 123){
-					// turn all sounds off with fade
-					printf("%hhx: turn all notes off with fade", controllernumber);
-				} else if (channel == 12 && controllernumber == 126){
-					// mono (one note on channel)
-					printf("%hhx: turn channel mono", controllernumber);
-				} else if (channel == 13 && controllernumber == 127){
-					// poly (multiple notes on channel)
-					printf("%hhx: turn channel poly", controllernumber);
-				} else if (channel == 14 && controllernumber == 121){
-					// reset all controllers for this channel
-					printf("%hhx: reset all channel controllers", controllernumber);
-				} else if (channel == 15){
-					// never implemented?
-					printf("%hhx: unimplemented event?", controllernumber);
-				} else {
-					printf("BAD SYSTEM EVENT?? 0x%hhx", controllernumber);
-
+				int16_t result = MUS_ProcessSystemEvent(channel, controllernumber);
+				if (!result){
+					// or do we read value?
+					byte value = 0;
+					result =  MUS_ProcessControllerEvent(channel, controllernumber, value);
+					if (!result){
+						printf("BAD SYSTEM EVENT?? 0x%hhx %0x", controllernumber, value);
+					}
 				}
 								
 				printf("\n");
 				increment++;
 			}
 
-
-			// TODO handle below cases with data byte 0
-				break;
+			break;
 			
 		case 4:
 			// Controller
 			{
-				byte controllernumber = currentlocation[1]; // values above 127 used for instrument change & 0x7F;
-				byte value 			  = currentlocation[2]; // values above 127 used for instrument change & 0x7F; ?
-				
-				if (channel == 0){
-					// change instrument
-					printf("%hhx %hhx: change instrument?", controllernumber, value);
-				} else if (channel == 1 && (controllernumber == 0 || controllernumber == 32)){
-					// bank select, 0 by default
-					printf("%hhx %hhx: bank select?", controllernumber, value);
-				} else if (channel == 2 && controllernumber == 1){
-					// modulation (vibrato frequency)
-					printf("%hhx %hhx: modulation", controllernumber, value);
-				} else if (channel == 3 && controllernumber == 7){
-					// volume 0 - 127. 100 is normal?
-					printf("%hhx %hhx: volume", controllernumber, value);
-				} else if (channel == 4 && controllernumber == 10){
-					// pan (balance) 0 left 64 center 127 right
-					printf("%hhx %hhx: pan", controllernumber, value);
-				} else if (channel == 5 && controllernumber == 11){
-					// expression
-					printf("%hhx %hhx: expression", controllernumber, value);
-				} else if (channel == 6 && controllernumber == 91){
-					// reverb depth
-					printf("%hhx %hhx: reverb", controllernumber, value);
-				} else if (channel == 7 && controllernumber == 93){
-					// chorus depth
-					printf("%hhx %hhx: chorus", controllernumber, value);
-				} else if (channel == 8 && controllernumber == 64){
-					// sustain pedal
-					printf("%hhx %hhx: sustain pedal", controllernumber, value);
-				} else if (channel == 9 && controllernumber == 67){
-					// soft pedal
-					printf("%hhx %hhx: soft pedal", controllernumber, value);
-				} else {
-					printf("%hhx %hhx: BAD CONTROLLER?", controllernumber, value);
+				byte value 			  = currentlocation[1]; // values above 127 used for instrument change & 0x7F; ?
+				byte controllernumber = currentlocation[2]; // values above 127 used for instrument change & 0x7F;
+				int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, value);
+				if (!result){
+					result = MUS_ProcessSystemEvent(channel, controllernumber);
+					if (!result){
+						printf("BAD SYSTEM EVENT?? 0x%hhx %0x", controllernumber, value);
+					}
 
 				}
+						
 				
 				printf("\n");
-				// todo silently skip event 3 cases
 
 				increment++;
 				increment++;
