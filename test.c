@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include "DMX.H"
+#include <signal.h>
 
 
 
@@ -89,10 +90,18 @@ int16_t MUS_Parseheader(byte __far *data){
         currentsong_secondary_channels  = worddata[5];  // always 0??
         currentsong_num_instruments     = worddata[6];  // varies..  but 0-127
         // reserved   
+		printf("Parsed values: \n");
+		printf("length:             0x%x\n",currentsong_length);
+		printf("start offset:       0x%x\n",currentsong_start_offset);
+		printf("primary channels:   0x%x\n",currentsong_primary_channels);
+		printf("secondary channels: 0x%x\n",currentsong_secondary_channels);
+		printf("num instruments:    0x%x\n",currentsong_num_instruments);
+
 
 		currentsong_playing_offset = currentsong_start_offset;
 		return 1; 
     } else {
+		printf("Bad header %x %x", worddata[0], worddata[1]);
 		return - 1;
 	}
 
@@ -188,7 +197,7 @@ void MUS_ServiceRoutine(){
 
 
 			// TODO handle below cases with data byte 0
-
+				break;
 			
 		case 4:
 			// Controller
@@ -267,7 +276,13 @@ void MUS_ServiceRoutine(){
 }
 
 
+void sigint_catcher(int sig) {
 
+	TS_Shutdown();
+
+	exit(sig);
+
+}
 
 int16_t main(void) {
 
@@ -275,14 +290,22 @@ int16_t main(void) {
 		FILE* fp = fopen("DEMO1.MUS", "rb");
 		uint16_t filesize;
 		if (fp){
+
+
 			fseek(fp, 0, SEEK_END);
 			filesize = ftell(fp);
 			fseek(fp, 0, SEEK_SET);
 			// where we're going, we don't need DOS's permission...
 			far_fread(MUS_LOCATION, filesize, 1, fp);
+
+			result = MUS_Parseheader(MUS_LOCATION);
+
 			printf("Loaded DEMO1.MUS into memory location 0x%lx successfully...\n", MUS_LOCATION);
 
 			printf("Scheduling interrupt\n");
+
+		    signal(SIGINT, sigint_catcher);
+
 
 			TS_Startup();
 			TS_ScheduleTask(MUS_ServiceRoutine, MUS_INTERRUPT_RATE);
@@ -309,7 +332,6 @@ int16_t main(void) {
 
 
 
-			result = MUS_Parseheader(MUS_LOCATION);
 		} else {
 			printf("Error: Could not find DEMO1.MUS");
 		}
