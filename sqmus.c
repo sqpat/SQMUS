@@ -1,6 +1,14 @@
 #include "sqmus.h"
 #include "test.h"
+#include <string.h>
 #include <conio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <graph.h>
+
+#include <i86.h>
+
 
 
 static uint16_t OctavePitch[OCTAVE_COUNT] = {
@@ -340,7 +348,7 @@ uint8_t        AdLibVoiceLevels[NumChipSlots][2];
 uint8_t        AdLibVoiceKsls[NumChipSlots][2];
 uint8_t        AdLibVoiceReserved[VOICE_COUNT * 2];
 AdLibVoiceList Voice_Pool;
-#define NULL 0
+//#define NULL 0
 
 
 void AL_Remove (AdLibVoiceList* listhead, AdLibVoice * item) {
@@ -428,6 +436,8 @@ int8_t AL_GetVoice(uint8_t channel, uint8_t key) {
 
 
 int16_t adlib_device = 1; // todo
+
+#define AL_SendOutputToPort AL_SendOutput
 
 void AL_SendOutput(uint8_t voiceport, uint8_t reg, uint8_t data){
     int16_t usereg = reg;
@@ -719,3 +729,220 @@ void AL_NoteOn (uint8_t channel, uint8_t key, uint8_t velocity) {
     AL_SetVoicePitch(voice);
     AL_SetVoicePan(voice);
 }
+
+
+
+
+
+/*---------------------------------------------------------------------
+   Function: AL_ResetVoices
+
+   Sets all voice info to the default state.
+---------------------------------------------------------------------*/
+
+void AL_ResetVoices(){
+    uint8_t index;
+
+    Voice_Pool.start = NULL;
+    Voice_Pool.end   = NULL;
+
+    for(index = 0; index < VOICE_COUNT * 2; index++) {
+        if (AdLibVoiceReserved[index] == false){
+            AdLibVoices[index].num = index;
+            AdLibVoices[index].key = 0;
+            AdLibVoices[index].velocity = 0;
+            AdLibVoices[index].channel = -1;
+            AdLibVoices[index].timbre = -1;
+            AdLibVoices[index].port = (index < VOICE_COUNT) ? 0 : 1;
+            AdLibVoices[index].status = NOTE_OFF;
+            AL_AddToTail(&Voice_Pool, &AdLibVoices[index]);
+        }
+    }
+
+    for(index = 0; index < CHANNEL_COUNT; index++){
+        AdLibChannels[index].Voices.start    = NULL;
+        AdLibChannels[index].Voices.end      = NULL;
+        AdLibChannels[index].Timbre          = 0;
+        AdLibChannels[index].Pitchbend       = 0;
+        AdLibChannels[index].KeyOffset       = 0;
+        AdLibChannels[index].KeyDetune       = 0;
+        AdLibChannels[index].Volume          = AL_DefaultChannelVolume;
+        AdLibChannels[index].Pan             = 64;
+        AdLibChannels[index].RPN             = 0;
+        AdLibChannels[index].PitchBendRange     = AL_DefaultPitchBendRange;
+        AdLibChannels[index].PitchBendSemiTones = AL_DefaultPitchBendRange / 100;
+        AdLibChannels[index].PitchBendHundreds  = AL_DefaultPitchBendRange % 100;
+    }
+}
+
+
+
+/*---------------------------------------------------------------------
+   Function: AL_FlushCard
+
+   Sets all voices to a known (quiet) state.
+---------------------------------------------------------------------*/
+
+void AL_FlushCard(int8_t port){
+
+    int i;
+    unsigned slot1;
+    unsigned slot2;
+
+    for(i = 0 ; i < VOICE_COUNT; i++) {
+        if (AdLibVoiceReserved[i] == false) {
+            slot1 = offsetSlot[slotVoice[i][0]];
+            slot2 = offsetSlot[slotVoice[i][1]];
+
+            AL_SendOutputToPort(port, 0xA0 + i, 0);
+            AL_SendOutputToPort(port, 0xB0 + i, 0);
+
+            AL_SendOutputToPort(port, 0xE0 + slot1, 0);
+            AL_SendOutputToPort(port, 0xE0 + slot2, 0);
+
+            // Set the envelope to be fast and quiet
+            AL_SendOutputToPort(port, 0x60 + slot1, 0xff);
+            AL_SendOutputToPort(port, 0x60 + slot2, 0xff);
+            AL_SendOutputToPort(port, 0x80 + slot1, 0xff);
+            AL_SendOutputToPort(port, 0x80 + slot2, 0xff);
+
+            // Maximum attenuation
+            AL_SendOutputToPort(port, 0x40 + slot1, 0xff);
+            AL_SendOutputToPort(port, 0x40 + slot2, 0xff);
+        }
+    }
+}
+
+
+
+/*---------------------------------------------------------------------
+   Function: AL_StereoOn
+
+   Sets the card send info in stereo.
+---------------------------------------------------------------------*/
+
+void AL_StereoOn() {
+    // Set card to OPL3 operation
+    AL_SendOutputToPort(1, 0x5, 1);
+}
+
+
+/*---------------------------------------------------------------------
+   Function: AL_StereoOff
+
+   Sets the card send info in mono.
+---------------------------------------------------------------------*/
+
+void AL_StereoOff() {
+    // Set card back to OPL2 operation
+    AL_SendOutputToPort(1, 0x5, 0);
+}
+
+
+/*---------------------------------------------------------------------
+   Function: AL_Reset
+
+   Sets the card to a known (quiet) state.
+---------------------------------------------------------------------*/
+
+void AL_Reset(void) {
+    AL_SendOutputToPort(0, 1, 0x20);
+    AL_SendOutputToPort(0, 0x08, 0);
+
+    // Set the values: AM Depth, VIB depth & Rhythm
+    AL_SendOutputToPort(0, 0xBD, 0);
+
+    AL_StereoOn();
+
+    AL_FlushCard(0);
+    AL_FlushCard(1);
+}
+
+
+
+
+int16_t AL_InitSynth() {
+    memset(AdLibVoiceLevels,   0, sizeof(AdLibVoiceLevels));
+    memset(AdLibVoiceKsls,     0, sizeof(AdLibVoiceKsls));
+    memset(AdLibVoiceReserved, 0, sizeof(AdLibVoiceReserved));
+    memset(AdLibVoices,        0, sizeof(AdLibVoices));
+    memset(&Voice_Pool,        0, sizeof(Voice_Pool));
+    memset(AdLibChannels,      0, sizeof(AdLibChannels));
+
+    //AL_CalcPitchInfo();
+    AL_Reset();
+    AL_ResetVoices();
+
+    return 1;
+}
+
+/*---------------------------------------------------------------------
+   Function: AL_Init
+
+   Begins use of the sound card.
+---------------------------------------------------------------------*/
+
+int16_t midi_init (uint16_t rate) {
+
+    chip = getchip();
+    if (!chip || !chip->fm_init(rate)){
+        return 0;
+    }
+
+    // fat timbre contents are ADLIB_TimbreBank by default
+    //memcpy(&ADLIB_TimbreBank, &FatTimbre, sizeof(FatTimbre));    
+    //AL_LoadBank("APOGEE.TMB");
+    return AL_InitSynth();
+}
+
+
+
+// custom tmb handling
+
+/*---------------------------------------------------------------------
+   Function: AL_RegisterTimbreBank
+
+   Copies user supplied timbres over the default timbre bank.
+---------------------------------------------------------------------*/
+/*
+void AL_RegisterTimbreBank(uint8_t *timbres){
+
+   
+   int16_t i;
+
+   for (i = 0; i < 256; i++) {
+        ADLIB_TimbreBank[i].SAVEK[0]   = *(timbres++);
+        ADLIB_TimbreBank[i].SAVEK[1]   = *(timbres++);
+        ADLIB_TimbreBank[i].Level[0]   = *(timbres++);
+        ADLIB_TimbreBank[i].Level[1]   = *(timbres++);
+        ADLIB_TimbreBank[i].Env1[0]    = *(timbres++);
+        ADLIB_TimbreBank[i].Env1[1]    = *(timbres++);
+        ADLIB_TimbreBank[i].Env2[0]    = *(timbres++);
+        ADLIB_TimbreBank[i].Env2[1]    = *(timbres++);
+        ADLIB_TimbreBank[i].Wave[0]    = *(timbres++);
+        ADLIB_TimbreBank[i].Wave[1]    = *(timbres++);
+        ADLIB_TimbreBank[i].Feedback   = *(timbres++);
+        ADLIB_TimbreBank[i].Transpose  = *(int8_t *)(timbres++);
+        ADLIB_TimbreBank[i].Velocity   = *(int8_t *)(timbres++);
+    }
+}
+
+bool AL_LoadBank(const char *filename) {
+    FILE *tmb = fopen(filename,"rb");
+    if (tmb) {
+        fseek(tmb,0,SEEK_END);
+        int size = ftell(tmb);
+        rewind(tmb);
+        if(size == 256*13) {
+            unsigned char timbre[256*13];
+            fread(timbre,1,256*13,tmb);
+            AL_RegisterTimbreBank(timbre);
+            fclose(tmb);
+            return true;
+        }
+        fclose(tmb);
+        return false;
+    }
+    return false;
+}
+*/

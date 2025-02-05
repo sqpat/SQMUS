@@ -13,6 +13,9 @@
 /* Number of slots for the voices on the chip */
 #define NumChipSlots 18
 
+#define AL_MaxVolume             127
+#define AL_DefaultChannelVolume  90
+#define AL_DefaultPitchBendRange 200
 
 enum octaves {
    OCTAVE_0 = 0x0000,
