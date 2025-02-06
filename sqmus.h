@@ -62,12 +62,12 @@ typedef struct {
    uint8_t          Timbre;
    uint8_t          Pitchbend;
    uint8_t          KeyOffset;
-   uint32_t         KeyDetune;
+   uint8_t          KeyDetune;
    uint8_t          Volume;
    //uint8_t         EffectiveVolume;
    uint8_t          Pan;
    uint8_t          Detune;
-   uint32_t         RPN;
+   uint8_t          RPN;
    int16_t          PitchBendRange;
    int16_t          PitchBendSemiTones;
    int16_t          PitchBendHundreds;
@@ -89,7 +89,7 @@ typedef struct {
 #define NOTE_OFF        0x0000
 
 int16_t AL_Init();
-void AL_NoteOn (uint8_t channel, uint8_t key, uint8_t velocity);
+void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume);
 void AL_NoteOff (uint8_t channel, uint8_t key);
 void AL_SetPitchBend(uint8_t channel, uint8_t lsb, uint8_t msb);
 void AL_SetChannelPan (uint8_t channel, uint8_t pan);

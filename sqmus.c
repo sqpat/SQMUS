@@ -58,7 +58,7 @@ static uint16_t NotePitch[TUNE_COUNT][12] = {
 
 
 
-static int16_t slotVoice[VOICE_COUNT][2] = {
+static int8_t slotVoice[VOICE_COUNT][2] = {
     { 0, 3 },    // voice 0
     { 1, 4 },    // 1
     { 2, 5 },    // 2
@@ -338,7 +338,7 @@ AdLibTimbre ADLIB_TimbreBank[256] = {
     { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 }
 };
 
-
+#define ADLIB_PORT     0x388
 #define AL_LeftPort    0x388
 #define AL_RightPort   0x388
 
@@ -359,13 +359,16 @@ void AL_Remove (AdLibVoiceList* listhead, AdLibVoice * item) {
     AdLibVoice **head = &listhead->start;
     AdLibVoice **tail = &listhead->end;
 
-    if (item->prev == NULL) {
+    // head is prevmost
+    // tail is nextmost
+
+    if (item->prev == NULL) {   // was head
         *head = item->next;
     } else {
         item->prev->next = item->next;
     }
 
-    if (item->next == NULL){
+    if (item->next == NULL){    // was tail
         *tail = item->prev;
     } else {
         item->next->prev = item->prev;
@@ -375,22 +378,25 @@ void AL_Remove (AdLibVoiceList* listhead, AdLibVoice * item) {
     item->prev = NULL;
 
 }
-void AL_AddToTail (AdLibVoiceList* listhead, AdLibVoice * item) {
-   AdLibVoice **head = &listhead->end;
-   AdLibVoice **tail = &listhead->start;
 
-   item->next = NULL;
-   item->prev = *head;
+void AL_AddToTail(AdLibVoiceList* listhead, AdLibVoice* item) {
+    AdLibVoice **head = &listhead->start;
+    AdLibVoice **tail = &listhead->end;
 
-    if (*head) {
-        (*head)->next = item;
+    item->next = NULL;
+    item->prev = *tail;
+
+    if (*tail) {
+        (*tail)->next = item;
     } else {
-        *tail = item;
+        *head = item;
     }
 
-    *head = item;
+    *tail = item;
 
 }
+
+
 
 
 
@@ -407,7 +413,7 @@ int8_t AL_AllocVoice() {
     if (Voice_Pool.start) {
         voice = Voice_Pool.start->num;
         AL_Remove(&Voice_Pool, &AdLibVoices[voice]);
-        return voice ;
+        return voice;
     }
 
     return VOICE_NOT_FOUND;
@@ -443,16 +449,20 @@ int16_t adlib_device = 1; // todo
 
 
 void AL_SendOutputToPort(int16_t port, uint8_t reg, uint8_t data) {
-   int8_t delay;
+    int8_t delay;
+    // FILE* fp = fopen("adlib.txt", "ab");
+    // fprintf(fp, "outp 0x%x 0x%hhx 0x%x %hhx\n", port, reg, port+1, data);
+    // fclose(fp);
+    outp(port, reg);
 
-   outp(port, reg);
-
-   //   for(delay = 2; delay > 0 ; delay--)
+    //   for(delay = 2; delay > 0 ; delay--)
     for (delay = 6; delay > 0; delay--) {
         inp(port);
     }
 
     outp(port + 1, data);
+
+    // todo move delay outside?
 
     //   for(delay = 35; delay > 0 ; delay--)
     for (delay = 27; delay > 0; delay--){
@@ -463,19 +473,28 @@ void AL_SendOutputToPort(int16_t port, uint8_t reg, uint8_t data) {
 
 
 
-void AL_SendOutput(uint8_t voice, uint8_t reg, uint8_t data){
+void AL_SendOutput(uint8_t port, uint8_t reg, uint8_t data){
 
-    if(adlib_device){
+    if(adlib_device){ //todo check for opl3?
+
         //chip->fm_writereg(usereg, data);
         //outp(usereg, data);
-        if (AdLibStereoOn){
-            AL_SendOutputToPort(AL_LeftPort, reg, data);
-            AL_SendOutputToPort(AL_RightPort, reg, data);
-        } else {
-            int16_t useport = (voice == 0) ? AL_RightPort : AL_LeftPort;
-            AL_SendOutputToPort(useport, reg, data);
+//        if (AdLibStereoOn){
+//            AL_SendOutputToPort(AL_LeftPort, reg, data);
+//            AL_SendOutputToPort(AL_RightPort, reg, data);
+//        } else {
+            //int16_t useport = (port == 0) ? AL_RightPort : AL_LeftPort;
 
-        }
+//            int16_t usereg = reg;            
+            // opl3 related???
+
+            //if (port){
+            //    usereg |= 0x100;
+            //}
+
+            AL_SendOutputToPort(ADLIB_PORT, reg, data);
+
+//        }
     }
 }
 
@@ -502,6 +521,9 @@ void AL_SetVoicePan(uint8_t voiceindex) {
     port = voice->port;
     voc  = (voiceindex >= VOICE_COUNT) ? voiceindex - VOICE_COUNT : voiceindex;
     timbre = &ADLIB_TimbreBank[voice->timbre];
+    
+    // balance around 64?
+    
     if (pan >= 96){
         mask = 0x10;
     } else if (pan <= 48){
@@ -520,7 +542,8 @@ void AL_SetVoicePan(uint8_t voiceindex) {
 ---------------------------------------------------------------------*/
 
 void AL_SetVoicePitch(int8_t voice){
-    int8_t  note;
+    int16_t note16;
+    int8_t  note8;
     uint8_t channel;
     uint8_t patch;
     uint8_t detune;
@@ -534,27 +557,28 @@ void AL_SetVoicePitch(int8_t voice){
     voc  = (voice >= VOICE_COUNT) ? voice - VOICE_COUNT : voice;
     channel = AdLibVoices[voice].channel;
 
-   if (channel == 9){
+    if (channel == 9){  // drum
         patch = AdLibVoices[voice].key + 128;
-        note  = ADLIB_TimbreBank[patch].Transpose;
+        note16  = ADLIB_TimbreBank[patch].Transpose;
     } else {
         patch = AdLibChannels[channel].Timbre;
-        note  = AdLibVoices[voice].key + ADLIB_TimbreBank[patch].Transpose;
+        note16  = AdLibVoices[voice].key + ADLIB_TimbreBank[patch].Transpose;
     }
 
-    note += AdLibChannels[channel].KeyOffset - 12;
-    if (note > MAX_NOTE){
-        note = MAX_NOTE;
+    note16 += AdLibChannels[channel].KeyOffset - 12;
+    if (note16 > MAX_NOTE){
+        note16 = MAX_NOTE;
     }
-    if (note < 0){
-        note = 0;
+    if (note16 < 0){
+        note16 = 0;
     }
+    note8 = note16;
 
     detune = AdLibChannels[channel].KeyDetune;
 
     // lookups are probably slower? calc both in one div instruction
-    ScaleNote = note % 12;
-    Octave    = note / 12;
+    ScaleNote = note8 % 12;
+    Octave    = note8 / 12;
 
     pitch = OctavePitch[Octave] | NotePitch[detune][ScaleNote];
 
@@ -582,7 +606,7 @@ void AL_SetVoiceVolume (int8_t voice) {
     uint8_t voc;
     uint32_t t1;
     uint32_t t2;
-    uint32_t volume;
+    uint8_t volume;
     AdLibTimbre *timbre;
 
     channel = AdLibVoices[voice].channel;
@@ -599,7 +623,7 @@ void AL_SetVoiceVolume (int8_t voice) {
     // amplitude
     t1  = AdLibVoiceLevels[slot][port];
     t1 *= (velocity + 0x80);
-    t1  = (AdLibChannels[channel].Volume * t1) >> 15;   // todo gross
+    t1  = (t1 * AdLibChannels[channel].Volume) >> 15;   // todo gross
 
     volume  = t1 ^ 63;
     volume |= AdLibVoiceKsls[slot][port];
@@ -661,27 +685,35 @@ void AL_SetVoiceTimbre (int8_t voice) {
     AdLibVoiceLevels[slot][port] = 63 - (timbre->Level[0] & 0x3F);
     AdLibVoiceKsls[slot][port]   = timbre->Level[0] & 0xC0;
 
+    // clear freq
     AL_SendOutput(port, 0xA0 + voc, 0);
     AL_SendOutput(port, 0xB0 + voc, 0);
 
     // Let voice clear the release
     AL_SendOutput(port, 0x80 + off, 0xFF);
 
-    AL_SendOutput(port, 0x60 + off, timbre->Env1[0]);
-    AL_SendOutput(port, 0x80 + off, timbre->Env2[0]);
-    AL_SendOutput(port, 0x20 + off, timbre->SAVEK[0]);
-    AL_SendOutput(port, 0xE0 + off, timbre->Wave[0]);
+    // instrument stuff
+    AL_SendOutput(port, 0x60 + off, timbre->Env1[0]);       //attack
+    AL_SendOutput(port, 0x80 + off, timbre->Env2[0]);       //sustain?
+    AL_SendOutput(port, 0x20 + off, timbre->SAVEK[0]);      //trem
+    AL_SendOutput(port, 0xE0 + off, timbre->Wave[0]);       //wave
 
-    AL_SendOutput(port, 0x40 + off, timbre->Level[0]);
+    AL_SendOutput(port, 0x40 + off, timbre->Level[0]);      
     slot = slotVoice[voc][1];
 
-    AL_SendOutput(port, 0xC0 + voc, (timbre->Feedback & 0x0F) | 0x30);
+    // play the note?
+    //AL_SendOutput(port, 0xC0 + voc, (timbre->Feedback & 0x0F) | 0x30);
+    AL_SendOutputToPort(ADLIB_PORT, 0xC0 + voice, timbre->Feedback);
+
+
+
 
     off = offsetSlot[slot];
 
     AdLibVoiceLevels[slot][port] = 63 - (timbre->Level[1] & 0x3F);
     AdLibVoiceKsls[slot][port]   = timbre->Level[1] & 0xC0;
-    AL_SendOutput(port, 0x40 + off, 63);
+    
+    AL_SendOutput(port, 0x40 + off, 63);        // no volume
 
     // Let voice clear the release
     AL_SendOutput(port, 0x80 + off, 0xFF);
@@ -807,7 +839,7 @@ void AL_NoteOff (uint8_t channel, uint8_t key) {
     AL_AddToTail(&Voice_Pool, &AdLibVoices[voice]);
 }
 
-void AL_NoteOn (uint8_t channel, uint8_t key, uint8_t velocity) {
+void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume) {
     int8_t voice;
 
     // We only play channels 1 through 10
@@ -816,7 +848,7 @@ void AL_NoteOn (uint8_t channel, uint8_t key, uint8_t velocity) {
     }
 
     // turn off note
-    if (velocity == 0) {
+    if (volume == 0) {
         AL_NoteOff(channel, key);
         return;
     }
@@ -828,22 +860,24 @@ void AL_NoteOn (uint8_t channel, uint8_t key, uint8_t velocity) {
             AL_NoteOff(9, AdLibChannels[9].Voices.start->key);
             voice = AL_AllocVoice();
         }
-    if (voice == VOICE_NOT_FOUND) {
-        return;
+        if (voice == VOICE_NOT_FOUND) {
+            return;
         }
     }
+    //printf("found voice %hhx %hhx %hhx %hhx\n", key, channel, volume, voice);
 
     AdLibVoices[voice].key      = key;
     AdLibVoices[voice].channel  = channel;
-    AdLibVoices[voice].velocity = velocity;
+    // last volume if -1
+    AdLibVoices[voice].velocity = volume == -1 ? AdLibChannels[channel].Volume : volume;
     AdLibVoices[voice].status   = NOTE_ON;
 
     AL_AddToTail(&AdLibChannels[channel].Voices, &AdLibVoices[voice]);
 
     AL_SetVoiceTimbre(voice);
     AL_SetVoiceVolume(voice);
-    AL_SetVoicePitch(voice);
-    AL_SetVoicePan(voice);
+    AL_SetVoicePitch(voice);    // set freq..
+    //AL_SetVoicePan(voice);
 }
 
 
@@ -982,32 +1016,30 @@ void AL_ResetVoices(){
    Sets all voices to a known (quiet) state.
 ---------------------------------------------------------------------*/
 
-void AL_FlushCard(int8_t port){
+void AL_FlushCard(){
 
-    int i;
-    unsigned slot1;
-    unsigned slot2;
+    int8_t i;
 
     for(i = 0 ; i < VOICE_COUNT; i++) {
         if (AdLibVoiceReserved[i] == false) {
-            slot1 = offsetSlot[slotVoice[i][0]];
-            slot2 = offsetSlot[slotVoice[i][1]];
+            int8_t slot1 = offsetSlot[slotVoice[i][0]];
+            int8_t slot2 = offsetSlot[slotVoice[i][1]];
 
-            AL_SendOutputToPort(port, 0xA0 + i, 0);
-            AL_SendOutputToPort(port, 0xB0 + i, 0);
+            AL_SendOutputToPort(ADLIB_PORT, 0xA0 + i, 0);
+            AL_SendOutputToPort(ADLIB_PORT, 0xB0 + i, 0);   // key off
 
-            AL_SendOutputToPort(port, 0xE0 + slot1, 0);
-            AL_SendOutputToPort(port, 0xE0 + slot2, 0);
+            AL_SendOutputToPort(ADLIB_PORT, 0xE0 + slot1, 0);
+            AL_SendOutputToPort(ADLIB_PORT, 0xE0 + slot2, 0);
 
             // Set the envelope to be fast and quiet
-            AL_SendOutputToPort(port, 0x60 + slot1, 0xff);
-            AL_SendOutputToPort(port, 0x60 + slot2, 0xff);
-            AL_SendOutputToPort(port, 0x80 + slot1, 0xff);
-            AL_SendOutputToPort(port, 0x80 + slot2, 0xff);
+            AL_SendOutputToPort(ADLIB_PORT, 0x60 + slot1, 0xff);    // attack/decay max
+            AL_SendOutputToPort(ADLIB_PORT, 0x60 + slot2, 0xff);    // attack/decay max
+            AL_SendOutputToPort(ADLIB_PORT, 0x80 + slot1, 0xff);    // release max
+            AL_SendOutputToPort(ADLIB_PORT, 0x80 + slot2, 0xff);    // release max`
 
             // Maximum attenuation
-            AL_SendOutputToPort(port, 0x40 + slot1, 0xff);
-            AL_SendOutputToPort(port, 0x40 + slot2, 0xff);
+            AL_SendOutputToPort(ADLIB_PORT, 0x40 + slot1, 0xff);
+            AL_SendOutputToPort(ADLIB_PORT, 0x40 + slot2, 0xff);
         }
     }
 }
@@ -1022,7 +1054,7 @@ void AL_FlushCard(int8_t port){
 
 void AL_StereoOn() {
     // Set card to OPL3 operation
-    AL_SendOutputToPort(1, 0x5, 1);
+    AL_SendOutputToPort(AL_RightPort, 0x5, 1);
     AdLibStereoOn = true;
 }
 
@@ -1035,7 +1067,7 @@ void AL_StereoOn() {
 
 void AL_StereoOff() {
     // Set card back to OPL2 operation
-    AL_SendOutputToPort(1, 0x5, 0);
+    AL_SendOutputToPort(AL_RightPort, 0x5, 0);
     AdLibStereoOn = false;
 }
 
@@ -1047,16 +1079,18 @@ void AL_StereoOff() {
 ---------------------------------------------------------------------*/
 
 void AL_Reset(void) {
-    AL_SendOutputToPort(0, 1, 0x20);
-    AL_SendOutputToPort(0, 0x08, 0);
+    AL_SendOutputToPort(ADLIB_PORT, 1, 0x20);       // enable waveform select
+    AL_SendOutputToPort(ADLIB_PORT, 0x08, 0x40);    // turn off CSW mode
+    //AL_SendOutputToPort(ADLIB_PORT, 0x08, 0);     // (original apogee lib)
 
     // Set the values: AM Depth, VIB depth & Rhythm
-    AL_SendOutputToPort(0, 0xBD, 0);
+    AL_SendOutputToPort(ADLIB_PORT, 0xBD, 0);
 
     AL_StereoOn();
 
-    AL_FlushCard(0);
-    AL_FlushCard(1);
+    AL_FlushCard();
+    //AL_FlushCard(AL_LeftPort);
+    //AL_FlushCard(AL_RightPort);
 }
 
 

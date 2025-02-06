@@ -27,7 +27,6 @@
 
 
 
-#define I_Error printf
 // REGS stuff used for int calls
 union REGS regs;
 struct SREGS sregs;
@@ -48,6 +47,8 @@ static uint16_t pageframebase;
 void donothing(){
 
 }
+
+//#define showimplemented 1
 
 #ifdef showimplemented
 	#define printf_implemented printf
@@ -129,7 +130,7 @@ int16_t MUS_Parseheader(byte __far *data){
 
 }
 
-#define MUS_INTERRUPT_RATE 100 
+#define MUS_INTERRUPT_RATE 140
 volatile int16_t called = 0;
 volatile int16_t finishplaying = 0;
 
@@ -212,7 +213,7 @@ int16_t MUS_ProcessSystemEvent(byte channel, byte controllernumber){
 
 	} else if (channel == 15){
 		// never implemented?
-		printf("%hhx: unimplemented event?", controllernumber);
+		printf("%hhx: unimplemented event?\n", controllernumber);
 	} else {
 		return 0;
 	}
@@ -235,9 +236,9 @@ void MUS_ServiceRoutine(){
 		int16_t increment = 1; // 1 for the event
 		byte doing_loop = false;
 		byte __far* currentlocation = MK_FP(MUS_SEGMENT, currentsong_playing_offset);
-		byte eventbyte = currentlocation[0];
-		byte event     = (eventbyte & 0x70) >> 4;
-		byte channel   = (eventbyte & 0x0F);
+		uint8_t eventbyte = currentlocation[0];
+		uint8_t event     = (eventbyte & 0x70) >> 4;
+		uint8_t channel   = (eventbyte & 0x0F);
 		byte lastflag  = (eventbyte & 0x80);
 		uint32_t delay_amt = 0;
 
@@ -266,7 +267,7 @@ void MUS_ServiceRoutine(){
 						volume = currentlocation[2] & 0x7F;
 						increment++;
 					} else {
-						volume = 0;		// todo: previous volume for the channel? stored?
+						volume = -1;
 					}
 
 					printf_implemented("play note 0x%hhx\n", key);
@@ -423,6 +424,7 @@ int16_t main(void) {
 			TS_Startup();
 			TS_ScheduleTask(MUS_ServiceRoutine, MUS_INTERRUPT_RATE);
 			TS_Dispatch();
+			
 			printf("Interrupt scheduled at %i interrupts per second\n", MUS_INTERRUPT_RATE);
 
 			printf("Now looping until keypress\n");
@@ -435,9 +437,9 @@ int16_t main(void) {
 					break;
 				}
 			}
+
 			if (finishplaying){
 				printf("Song Finished, shutting down interrupt...\n");
-
 			} else {
 				printf("Detected keypress, shutting down interrupt...\n");
 			}
