@@ -549,7 +549,7 @@ void AL_SetVoicePitch(int8_t voice){
     uint8_t detune;
     uint8_t ScaleNote;
     uint8_t Octave;
-    uint8_t pitch;
+    uint16_t pitch;
     uint8_t port;
     uint8_t voc;
 
@@ -864,13 +864,21 @@ void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume) {
             return;
         }
     }
-    //printf("found voice %hhx %hhx %hhx %hhx\n", key, channel, volume, voice);
+    /*
+    printf("\nfound voice %hhx %hhx %hhx (%hhx) %hhx\n", key, channel, volume, 
+        volume == -1 ? AdLibChannels[channel].LastVolume : volume,
+        voice);
+        */
+
 
     AdLibVoices[voice].key      = key;
     AdLibVoices[voice].channel  = channel;
     // last volume if -1
-    AdLibVoices[voice].velocity = volume == -1 ? AdLibChannels[channel].Volume : volume;
+    // todo i think this may not be the right volume
+    AdLibVoices[voice].velocity = volume == -1 ? AdLibChannels[channel].LastVolume : volume;
     AdLibVoices[voice].status   = NOTE_ON;
+
+    AdLibChannels[channel].LastVolume = AdLibVoices[voice].velocity;
 
     AL_AddToTail(&AdLibChannels[channel].Voices, &AdLibVoices[voice]);
 
@@ -906,6 +914,7 @@ void AL_SetChannelVolume (uint8_t channel, uint8_t volume){
     AdLibVoice *voice;
 
     volume &= AL_MaxVolume;
+    AdLibChannels[channel].LastVolume = AdLibChannels[channel].Volume;
     AdLibChannels[channel].Volume = volume;
 
     voice = AdLibChannels[channel].Voices.start;
@@ -1000,6 +1009,7 @@ void AL_ResetVoices(){
         AdLibChannels[index].KeyOffset       = 0;
         AdLibChannels[index].KeyDetune       = 0;
         AdLibChannels[index].Volume          = AL_DefaultChannelVolume;
+        AdLibChannels[index].LastVolume      = AL_DefaultChannelVolume;
         AdLibChannels[index].Pan             = 64;
         AdLibChannels[index].RPN             = 0;
         AdLibChannels[index].PitchBendRange     = AL_DefaultPitchBendRange;

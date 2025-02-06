@@ -64,6 +64,7 @@ typedef struct {
    uint8_t          KeyOffset;
    uint8_t          KeyDetune;
    uint8_t          Volume;
+   uint8_t          LastVolume;
    //uint8_t         EffectiveVolume;
    uint8_t          Pan;
    uint8_t          Detune;
@@ -88,6 +89,7 @@ typedef struct {
 #define NOTE_ON         0x2000  /* Used to turn note on or toggle note */
 #define NOTE_OFF        0x0000
 
+void AL_Reset();
 int16_t AL_Init();
 int16_t AL_Detect();
 void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume);

@@ -94,7 +94,7 @@ uint16_t currentsong_num_instruments;       // 0-127
 
 uint16_t currentsong_play_timer;
 uint32_t currentsong_int_count;
-int32_t currentsong_ticks_to_process;
+int32_t currentsong_ticks_to_process = 0;
 
 
 #define MUS_SEGMENT 	0x6000
@@ -332,13 +332,12 @@ void MUS_ServiceRoutine(){
 			case 4:
 				// Controller
 				{
-					byte controllernumber = currentlocation[1]; // values above 127 used for instrument change & 0x7F;
-					byte value 			  = currentlocation[2]; // values above 127 used for instrument change & 0x7F; ?
+					byte controllernumber = currentlocation[1] & 0x7F; // values above 127 used for instrument change & 0x7F;
+					byte value 			  = currentlocation[2] & 0x7F; // values above 127 used for instrument change & 0x7F; ?
 					int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, value);
 					if (!result){
 						printf("B BAD SYSTEM EVENT?? %hhx %hhx %hhx\n", eventbyte, value, controllernumber);
 					}
-							
 					
 					printf_implemented("\n");
 
@@ -446,10 +445,11 @@ int16_t main(void) {
 				uint16_t val1 = currentsong_int_count / (60 * MUS_INTERRUPT_RATE);
 				uint16_t val2 = (currentsong_int_count / (MUS_INTERRUPT_RATE)) % 60;
 				uint16_t val3 = (1000L * (currentsong_int_count % (MUS_INTERRUPT_RATE))) / (MUS_INTERRUPT_RATE);
-				cprintf("\rPlaying %s ... %2i:%02i.%03i  ", filename,
+				cprintf("\rPlaying %s ... %2i:%02i.%03i (%li) ", filename,
 					val1, 
 					val2,
-					val3 
+					val3,
+					currentsong_int_count
 					);
 
 			}
@@ -466,7 +466,13 @@ int16_t main(void) {
 
 		TS_Shutdown();
 
-		printf("Shut down interrupt, exiting program...\n");
+		printf("Shut down interrupt, flushing adlib...\n");
+
+
+		AL_Reset();
+
+		printf("Adlib state cleared, exiting program...\n");
+
 
 	} else {
 		printf("Error: Could not find DEMO1.MUS");
