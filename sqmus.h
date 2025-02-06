@@ -1,7 +1,7 @@
 #include "test.h"
 
 #define OCTAVE_COUNT 8
-#define TUNE_COUNT 32
+#define TUNE_COUNT 32u
 #define VOICE_COUNT 9
 #define CHANNEL_COUNT 16
 #define MAX_VELOCITY 0x7F
@@ -12,6 +12,10 @@
 
 /* Number of slots for the voices on the chip */
 #define NumChipSlots 18
+
+#define FINETUNE_RANGE TUNE_COUNT
+#define PITCHBEND_CENTER 1638400u
+
 
 #define AL_MaxVolume             127
 #define AL_DefaultChannelVolume  90
@@ -59,8 +63,8 @@ typedef struct {
    uint8_t          Pitchbend;
    uint8_t          KeyOffset;
    uint32_t         KeyDetune;
-   uint32_t         Volume;
-   uint32_t         EffectiveVolume;
+   uint8_t          Volume;
+   //uint8_t         EffectiveVolume;
    uint8_t          Pan;
    uint8_t          Detune;
    uint32_t         RPN;
@@ -85,3 +89,12 @@ typedef struct {
 #define NOTE_OFF        0x0000
 
 int16_t AL_Init();
+void AL_NoteOn (uint8_t channel, uint8_t key, uint8_t velocity);
+void AL_NoteOff (uint8_t channel, uint8_t key);
+void AL_SetPitchBend(uint8_t channel, uint8_t lsb, uint8_t msb);
+void AL_SetChannelPan (uint8_t channel, uint8_t pan);
+void AL_SetChannelVolume(uint8_t channel, uint8_t volume);
+void AL_AllNotesOff(uint8_t channel);
+void AL_ResetVoices();
+void AL_SetChannelDetune (uint8_t channel, uint8_t detune);
+

@@ -120,42 +120,45 @@ int16_t MUS_Parseheader(byte __far *data){
 #define MUS_INTERRUPT_RATE 100 
 volatile int16_t called = 0;
 
-int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, byte value){
+int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, byte data){
 
 	// todo combine bytes and switch case a word
 
 	if (channel == 0){
 		// change instrument
-		printf("%hhx %hhx: change instrument?", controllernumber, value);
+		printf("%hhx %hhx: change instrument?", controllernumber, data);
 	} else if (channel == 1 && (controllernumber == 0 || controllernumber == 32)){
 		// bank select, 0 by default
-		printf("%hhx %hhx: bank select?", controllernumber, value);
+		printf("%hhx %hhx: bank select?", controllernumber, data);
 	} else if (channel == 2 && controllernumber == 1){
 		// modulation (vibrato frequency)
-		printf("%hhx %hhx: modulation", controllernumber, value);
+		printf("%hhx %hhx: modulation", controllernumber, data);
 	} else if (channel == 3 && controllernumber == 7){
 		// volume 0 - 127. 100 is normal?
-		printf("%hhx %hhx: volume", controllernumber, value);
+		printf("%hhx %hhx: volume", controllernumber, data);
+		AL_SetChannelVolume(channel, data);
 	} else if (channel == 4 && controllernumber == 10){
 		// pan (balance) 0 left 64 center 127 right
-		printf("%hhx %hhx: pan", controllernumber, value);
+		printf("%hhx %hhx: pan", controllernumber, data);
+		AL_SetChannelPan(channel, data);
+
 	} else if (channel == 5 && controllernumber == 11){
 		// expression
-		printf("%hhx %hhx: expression", controllernumber, value);
+		printf("%hhx %hhx: expression", controllernumber, data);
 	} else if (channel == 6 && controllernumber == 91){
 		// reverb depth
-		printf("%hhx %hhx: reverb", controllernumber, value);
+		printf("%hhx %hhx: reverb", controllernumber, data);
 	} else if (channel == 7 && controllernumber == 93){
 		// chorus depth
-		printf("%hhx %hhx: chorus", controllernumber, value);
+		printf("%hhx %hhx: chorus", controllernumber, data);
 	} else if (channel == 8 && controllernumber == 64){
 		// sustain pedal
-		printf("%hhx %hhx: sustain pedal", controllernumber, value);
+		printf("%hhx %hhx: sustain pedal", controllernumber, data);
 	} else if (channel == 9 && controllernumber == 67){
 		// soft pedal
-		printf("%hhx %hhx: soft pedal", controllernumber, value);
+		printf("%hhx %hhx: soft pedal", controllernumber, data);
 	} else {
-		//printf("%hhx %hhx: BAD CONTROLLER?", controllernumber, value);
+		//printf("%hhx %hhx: BAD CONTROLLER?", controllernumber, data);
 		return 0;
 	}
 
@@ -169,9 +172,13 @@ int16_t MUS_ProcessSystemEvent(byte channel, byte controllernumber){
 	if (channel == 10 && controllernumber == 120){
 		// turn all sounds off no fade
 		printf("%hhx: turn all notes off no fade", controllernumber);
+		AL_AllNotesOff(channel);
+
 	} else if (channel == 11 && controllernumber == 123){
 		// turn all sounds off with fade
 		printf("%hhx: turn all notes off with fade", controllernumber);
+		AL_AllNotesOff(channel);
+
 	} else if (channel == 12 && controllernumber == 126){
 		// mono (one note on channel)
 		printf("%hhx: turn channel mono", controllernumber);
@@ -183,6 +190,12 @@ int16_t MUS_ProcessSystemEvent(byte channel, byte controllernumber){
 	} else if (channel == 14 && controllernumber == 121){
 		// reset all controllers for this channel
 		printf("%hhx: reset all channel controllers", controllernumber);
+
+		AL_ResetVoices();
+		AL_SetChannelVolume(channel, AL_DefaultChannelVolume);
+		AL_SetChannelPan(channel, 64);
+		AL_SetChannelDetune(channel, 0);
+
 	} else if (channel == 15){
 		// never implemented?
 		printf("%hhx: unimplemented event?", controllernumber);
@@ -221,10 +234,11 @@ void MUS_ServiceRoutine(){
 				// Release Note
 				{
 					byte value 			  = currentlocation[1];
-					byte notenumber		  = value & 0x7F;
+					byte key		  = value & 0x7F;
 
-					// todo release notenumber
-					printf("release note 0x%hhx\n", notenumber);
+					printf("release note 0x%hhx\n", key);
+					AL_NoteOff(channel, key);
+
 				}
 				increment++;
 				break;
@@ -233,7 +247,7 @@ void MUS_ServiceRoutine(){
 				{
 					byte value 			  = currentlocation[1];
 					byte volume;
-					byte notenumber		  = value & 0x7F;
+					byte key		  = value & 0x7F;
 					if (value & 0x80){
 						volume = currentlocation[2] & 0x7F;
 						increment++;
@@ -241,8 +255,9 @@ void MUS_ServiceRoutine(){
 						volume = 0;		// todo: previous volume for the channel? stored?
 					}
 
-					// todo play notenumber
-					printf("play note 0x%hhx\n", notenumber);
+					printf("play note 0x%hhx\n", key);
+					AL_NoteOn(channel, key, volume);
+
 					increment++;
 
 				}
@@ -252,11 +267,11 @@ void MUS_ServiceRoutine(){
 				// Pitch Bend
 				{
 					byte value 			  = currentlocation[1];
-
-					// todo bend note
+					// todo do we use a 2nd value for lsb/msb?
+					
 					printf("bend channel by 0x%hhx\n", value);
 					increment++;
-
+					AL_SetPitchBend (channel, 0, value); // todo? 2nd value
 				}
 				break;
 			case 3:

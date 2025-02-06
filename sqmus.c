@@ -447,16 +447,16 @@ void AL_SendOutputToPort(int16_t port, uint8_t reg, uint8_t data) {
 
    outp(port, reg);
 
-   //   for( delay = 2; delay > 0 ; delay-- )
+   //   for(delay = 2; delay > 0 ; delay--)
     for (delay = 6; delay > 0; delay--) {
         inp(port);
     }
 
     outp(port + 1, data);
 
-    //   for( delay = 35; delay > 0 ; delay-- )
+    //   for(delay = 35; delay > 0 ; delay--)
     for (delay = 27; delay > 0; delay--){
-    //   for( delay = 2; delay > 0 ; delay-- )
+    //   for(delay = 2; delay > 0 ; delay--)
         inp(port);
     }
 }
@@ -693,6 +693,93 @@ void AL_SetVoiceTimbre (int8_t voice) {
 }
 
 
+
+/*---------------------------------------------------------------------
+   Function: AL_ControlChange
+
+   Sets the value of a controller on the specified MIDI channel.
+---------------------------------------------------------------------*/
+
+/*
+void AL_ControlChange (uint8_t channel, uint8_t type, uint8_t data){
+    // We only play channels 1 through 10
+    if (channel > AL_MaxMidiChannel) {
+        return;
+    }
+
+    switch(type) {
+
+
+
+        case MIDI_DETUNE :
+            AL_SetChannelDetune(channel, data);
+            break;
+
+        case MIDI_RPN_MSB :
+            AdLibChannels[channel].RPN &= 0x00FF;
+            AdLibChannels[channel].RPN |= (data & 0xFF) << 8;
+            break;
+
+        case MIDI_RPN_LSB :
+            AdLibChannels[channel].RPN &= 0xFF00;
+            AdLibChannels[channel].RPN |= data & 0xFF;
+            break;
+
+        case MIDI_DATAENTRY_MSB :
+            if (AdLibChannels[channel].RPN == MIDI_PITCHBEND_RPN)
+            {
+                AdLibChannels[channel].PitchBendSemiTones = data;
+                AdLibChannels[channel].PitchBendRange     =
+                    AdLibChannels[channel].PitchBendSemiTones * 100 +
+                    AdLibChannels[channel].PitchBendHundreds;
+            }
+            break;
+
+        case MIDI_DATAENTRY_LSB :
+            if (AdLibChannels[channel].RPN == MIDI_PITCHBEND_RPN) {
+                AdLibChannels[channel].PitchBendHundreds = data;
+                AdLibChannels[channel].PitchBendRange    =
+                    AdLibChannels[channel].PitchBendSemiTones * 100 +
+                    AdLibChannels[channel].PitchBendHundreds;
+            }
+            break;
+    }
+}
+
+*/
+
+
+void AL_SetPitchBend(uint8_t channel, uint8_t lsb, uint8_t msb){    
+    int16_t_union  pitchbend;
+    uint32_t  TotalBend;
+    AdLibVoice  *voice;
+
+    // We only play channels 1 through 10
+    if (channel > MAX_MUS_CHANNEL){
+        return;
+    }
+
+    pitchbend.b.bytehigh = msb;
+    pitchbend.b.bytelow = lsb;
+
+    AdLibChannels[channel].Pitchbend = pitchbend.hu;
+
+    TotalBend  = pitchbend.hu * AdLibChannels[channel].PitchBendRange;
+    TotalBend /= (PITCHBEND_CENTER / FINETUNE_RANGE);
+
+    AdLibChannels[channel].KeyOffset  = (int)(TotalBend / FINETUNE_RANGE);
+    AdLibChannels[channel].KeyOffset -= AdLibChannels[channel].PitchBendSemiTones;
+
+    AdLibChannels[channel].KeyDetune = (TotalBend % FINETUNE_RANGE);
+
+    voice = AdLibChannels[channel].Voices.start;
+    while(voice != NULL) {
+        AL_SetVoicePitch(voice->num);
+        voice = voice->next;
+    }
+}
+
+
 void AL_NoteOff (uint8_t channel, uint8_t key) {
     int8_t   voice;
     uint16_t port;
@@ -759,6 +846,72 @@ void AL_NoteOn (uint8_t channel, uint8_t key, uint8_t velocity) {
     AL_SetVoicePan(voice);
 }
 
+
+
+/*---------------------------------------------------------------------
+   Function: AL_AllNotesOff
+
+   Turns off all currently playing voices.
+---------------------------------------------------------------------*/
+
+void AL_AllNotesOff(uint8_t channel){
+    while (AdLibChannels[channel].Voices.start != NULL) {
+        AL_NoteOff(channel, AdLibChannels[channel].Voices.start->key);
+    }
+}
+
+
+
+/*---------------------------------------------------------------------
+   Function: AL_SetChannelVolume
+
+   Sets the volume of the specified MIDI channel.
+---------------------------------------------------------------------*/
+
+void AL_SetChannelVolume(uint8_t channel, uint8_t volume){
+    AdLibVoice *voice;
+
+    volume &= AL_MaxVolume;
+    AdLibChannels[channel].Volume = volume;
+
+    voice = AdLibChannels[channel].Voices.start;
+    while(voice != NULL){
+        AL_SetVoiceVolume(voice->num);
+        voice = voice->next;
+    }
+}
+
+
+/*---------------------------------------------------------------------
+   Function: AL_SetChannelPan
+
+   Sets the pan position of the specified MIDI channel.
+---------------------------------------------------------------------*/
+
+void AL_SetChannelPan (uint8_t channel, uint8_t pan){
+
+    // Don't pan drum sounds
+    if (channel != 9) {
+        AdLibVoice *voice;
+        AdLibChannels[channel].Pan = pan;
+        voice = AdLibChannels[channel].Voices.start;
+        while(voice != NULL){
+            AL_SetVoicePan(voice->num);
+            voice = voice->next;
+        }
+    }
+}
+
+
+/*---------------------------------------------------------------------
+   Function: AL_SetChannelDetune
+
+   Sets the stereo voice detune of the specified MIDI channel.
+---------------------------------------------------------------------*/
+
+void AL_SetChannelDetune (uint8_t channel, uint8_t detune){
+   AdLibChannels[channel].Detune = detune;
+}
 
 
 
