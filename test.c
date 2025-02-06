@@ -43,6 +43,18 @@ static uint16_t pageframebase;
 #define _inhword(x) (inpw(x))
  
  
+//#define showimplemented 1
+
+void donothing(){
+
+}
+
+#ifdef showimplemented
+	#define printf_implemented printf
+#else
+	#define printf_implemented(...) donothing
+
+#endif
 
 
 
@@ -119,6 +131,7 @@ int16_t MUS_Parseheader(byte __far *data){
 
 #define MUS_INTERRUPT_RATE 100 
 volatile int16_t called = 0;
+volatile int16_t finishplaying = 0;
 
 int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, byte data){
 
@@ -126,7 +139,8 @@ int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, byte dat
 
 	if (channel == 0){
 		// change instrument
-		printf("%hhx %hhx: change instrument?", controllernumber, data);
+		printf_implemented("%hhx %hhx: change instrument?", controllernumber, data);
+		AL_ProgramChange(channel, data);
 	} else if (channel == 1 && (controllernumber == 0 || controllernumber == 32)){
 		// bank select, 0 by default
 		printf("%hhx %hhx: bank select?", controllernumber, data);
@@ -135,11 +149,11 @@ int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, byte dat
 		printf("%hhx %hhx: modulation", controllernumber, data);
 	} else if (channel == 3 && controllernumber == 7){
 		// volume 0 - 127. 100 is normal?
-		printf("%hhx %hhx: volume", controllernumber, data);
+		printf_implemented("%hhx %hhx: volume", controllernumber, data);
 		AL_SetChannelVolume(channel, data);
 	} else if (channel == 4 && controllernumber == 10){
 		// pan (balance) 0 left 64 center 127 right
-		printf("%hhx %hhx: pan", controllernumber, data);
+		printf_implemented("%hhx %hhx: pan", controllernumber, data);
 		AL_SetChannelPan(channel, data);
 
 	} else if (channel == 5 && controllernumber == 11){
@@ -171,12 +185,12 @@ int16_t MUS_ProcessSystemEvent(byte channel, byte controllernumber){
 
 	if (channel == 10 && controllernumber == 120){
 		// turn all sounds off no fade
-		printf("%hhx: turn all notes off no fade", controllernumber);
+		printf_implemented("%hhx: turn all notes off no fade", controllernumber);
 		AL_AllNotesOff(channel);
 
 	} else if (channel == 11 && controllernumber == 123){
 		// turn all sounds off with fade
-		printf("%hhx: turn all notes off with fade", controllernumber);
+		printf_implemented("%hhx: turn all notes off with fade", controllernumber);
 		AL_AllNotesOff(channel);
 
 	} else if (channel == 12 && controllernumber == 126){
@@ -189,7 +203,7 @@ int16_t MUS_ProcessSystemEvent(byte channel, byte controllernumber){
 		// IGNORED in midi mode. used by opl2
 	} else if (channel == 14 && controllernumber == 121){
 		// reset all controllers for this channel
-		printf("%hhx: reset all channel controllers", controllernumber);
+		printf_implemented("%hhx: reset all channel controllers", controllernumber);
 
 		AL_ResetVoices();
 		AL_SetChannelVolume(channel, AL_DefaultChannelVolume);
@@ -213,7 +227,7 @@ void MUS_ServiceRoutine(){
 	
 	// TODO: actually get the proper amount of time to pass.
 	currentsong_ticks_to_process += MUS_INTERRUPT_RATE;
-	printf("INT CALLED (#%i) \n", currentsong_int_count);
+	printf_implemented("INT CALLED (#%i) \n", currentsong_int_count);
 
 	while (currentsong_ticks_to_process >= 0){
 
@@ -227,7 +241,7 @@ void MUS_ServiceRoutine(){
 		byte lastflag  = (eventbyte & 0x80);
 		uint32_t delay_amt = 0;
 
-		printf("%04x: %02x L: %hhi C: %hhi, EV: %hhi:\t", currentsong_playing_offset, eventbyte, (lastflag != 0), channel, event);
+		printf_implemented("%04x: %02x L: %hhi C: %hhi, EV: %hhi:\t", currentsong_playing_offset, eventbyte, (lastflag != 0), channel, event);
 
 		switch (event){
 			case 0:
@@ -236,7 +250,7 @@ void MUS_ServiceRoutine(){
 					byte value 			  = currentlocation[1];
 					byte key		  = value & 0x7F;
 
-					printf("release note 0x%hhx\n", key);
+					printf_implemented("release note 0x%hhx\n", key);
 					AL_NoteOff(channel, key);
 
 				}
@@ -255,7 +269,7 @@ void MUS_ServiceRoutine(){
 						volume = 0;		// todo: previous volume for the channel? stored?
 					}
 
-					printf("play note 0x%hhx\n", key);
+					printf_implemented("play note 0x%hhx\n", key);
 					AL_NoteOn(channel, key, volume);
 
 					increment++;
@@ -269,7 +283,7 @@ void MUS_ServiceRoutine(){
 					byte value 			  = currentlocation[1];
 					// todo do we use a 2nd value for lsb/msb?
 					
-					printf("bend channel by 0x%hhx\n", value);
+					printf_implemented("bend channel by 0x%hhx\n", value);
 					increment++;
 					AL_SetPitchBend (channel, 0, value); // todo? 2nd value
 				}
@@ -284,11 +298,11 @@ void MUS_ServiceRoutine(){
 						byte value = 0;
 						result =  MUS_ProcessControllerEvent(channel, controllernumber, value);
 						if (!result){
-							printf("BAD SYSTEM EVENT?? 0x%hhx %0x", controllernumber, value);
+							printf("BAD SYSTEM EVENT?? 0x%hhx %0x\n", controllernumber, value);
 						}
 					}
 									
-					printf("\n");
+					printf_implemented("\n");
 					increment++;
 				}
 
@@ -303,13 +317,13 @@ void MUS_ServiceRoutine(){
 					if (!result){
 						result = MUS_ProcessSystemEvent(channel, controllernumber);
 						if (!result){
-							printf("BAD SYSTEM EVENT?? 0x%hhx %0x", controllernumber, value);
+							printf("BAD SYSTEM EVENT?? 0x%hhx %0x\n", controllernumber, value);
 						}
 
 					}
 							
 					
-					printf("\n");
+					printf_implemented("\n");
 
 					increment++;
 					increment++;
@@ -329,6 +343,8 @@ void MUS_ServiceRoutine(){
 					printf("LOOP SONG!\n");
 					doing_loop = true;
 					break;
+				} else {
+					finishplaying = 1;
 				}
 				break;
 			case 7:
@@ -345,7 +361,8 @@ void MUS_ServiceRoutine(){
 			delay_amt <<= 8;
 			lastflag = currentlocation[0];
 			delay_amt += (lastflag &0x7F);
-			printf("  Read delay byte: 0x%x current delay: 0x%lx \n", lastflag, delay_amt);
+			// todo properly handle multibyte? int32t?
+			printf_implemented("  Read delay byte: 0x%x current delay: 0x%lx \n", lastflag, delay_amt);
 			lastflag &= 0x80;
 			currentsong_playing_offset++;
 		}
@@ -358,7 +375,7 @@ void MUS_ServiceRoutine(){
 		}
 
 	}
-	printf("INT DONE (#%i) \n", currentsong_int_count);
+	printf_implemented("INT DONE (#%i) \n", currentsong_int_count);
 	called = 1;
 	currentsong_int_count++;
 }
@@ -414,9 +431,16 @@ int16_t main(void) {
 				if (called){
 					called = 0;
 				}
+				if (finishplaying){
+					break;
+				}
 			}
+			if (finishplaying){
+				printf("Song Finished, shutting down interrupt...\n");
 
-			printf("Detected keypress, shutting down interrupt...\n");
+			} else {
+				printf("Detected keypress, shutting down interrupt...\n");
+			}
 
 
 			TS_Shutdown();

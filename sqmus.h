@@ -97,4 +97,6 @@ void AL_SetChannelVolume(uint8_t channel, uint8_t volume);
 void AL_AllNotesOff(uint8_t channel);
 void AL_ResetVoices();
 void AL_SetChannelDetune (uint8_t channel, uint8_t detune);
+void AL_ProgramChange (uint8_t channel, uint8_t patch);
+
 

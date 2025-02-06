@@ -868,7 +868,7 @@ void AL_AllNotesOff(uint8_t channel){
    Sets the volume of the specified MIDI channel.
 ---------------------------------------------------------------------*/
 
-void AL_SetChannelVolume(uint8_t channel, uint8_t volume){
+void AL_SetChannelVolume (uint8_t channel, uint8_t volume){
     AdLibVoice *voice;
 
     volume &= AL_MaxVolume;
@@ -911,6 +911,23 @@ void AL_SetChannelPan (uint8_t channel, uint8_t pan){
 
 void AL_SetChannelDetune (uint8_t channel, uint8_t detune){
    AdLibChannels[channel].Detune = detune;
+}
+
+
+/*---------------------------------------------------------------------
+   Function: AL_ProgramChange
+
+   Selects the instrument to use on the specified MIDI channel.
+---------------------------------------------------------------------*/
+
+void AL_ProgramChange (uint8_t channel, uint8_t patch){
+
+   // We only play channels 1 through 10
+    if (channel > CHANNEL_COUNT){
+        return;
+    }
+
+    AdLibChannels[channel].Timbre  = patch;
 }
 
 
