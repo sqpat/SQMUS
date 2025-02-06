@@ -53,7 +53,7 @@ int16_t GF1_Detect(void);
 void GF1_SetMap(void __far*data, int16_t len);
 int16_t SB_Detect(int16_t *port, uint8_t *irq, uint8_t *dma, int16_t *unk);
 void SB_SetCard(int16_t port, uint8_t irq, uint8_t dma);
-int16_t AL_Detect(int16_t *port, int16_t *unk);
+//int16_t AL_Detect(int16_t *port, int16_t *unk);
 void AL_SetCard(int16_t port, void __far*data);
 int16_t MPU_Detect(int16_t *port, int16_t *unk);
 void MPU_SetCard(int16_t port);
@@ -72,7 +72,7 @@ void TS_Startup(void);
 void  TS_Shutdown(void);
 
 extern task HeadTask;
-extern volatile int32_t TaskServiceRate;
+extern volatile uint32_t TaskServiceRate;
 extern volatile fixed_t_union TaskServiceCount;
 
 extern volatile int16_t TS_TimesInInterrupt;

@@ -1134,6 +1134,30 @@ int16_t AL_Init (uint16_t rate) {
 }
 
 
+int16_t AL_Detect(){
+
+    uint8_t status1;
+    uint8_t status2;
+    uint8_t i;
+
+    AL_SendOutputToPort(ADLIB_PORT, 0x04, 0x60);
+    AL_SendOutputToPort(ADLIB_PORT, 0x04, 0x80);
+    status1 = inp(ADLIB_PORT) & 0xE0;
+    AL_SendOutputToPort(ADLIB_PORT, 0x02, 0xFF);
+    AL_SendOutputToPort(ADLIB_PORT, 0x04, 0x21);
+    
+    for (i = 0; i < 100; i++){
+	    inp(ADLIB_PORT);          // delay
+    }
+
+    status2 = inp(ADLIB_PORT) & 0xE0;
+    AL_SendOutputToPort(ADLIB_PORT, 0x04, 0x60);
+    AL_SendOutputToPort(ADLIB_PORT, 0x04, 0x80);
+
+    return (status1 == 0 && status2 == 0xC0);
+}
+
+
 
 // custom tmb handling
 

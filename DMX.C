@@ -25,7 +25,7 @@
 
 task HeadTask;
 void( __interrupt __far *OldInt8)(void);
-volatile int32_t TaskServiceRate = 0x10000L;
+volatile uint32_t TaskServiceRate = 0x10000L;
 volatile fixed_t_union TaskServiceCount;
 
 volatile int16_t TS_TimesInInterrupt;
@@ -51,7 +51,7 @@ void TS_FreeTaskList(void){
 void TS_SetClockSpeed(int32_t speed){
 
 	_disable();
-	if ((speed > 0) && (speed < 0x10000L)) {
+	if (speed < 0x10000L) {
 		TaskServiceRate = speed;
 	} else {
 		TaskServiceRate = 0x10000L;
@@ -70,15 +70,16 @@ void TS_SetClockSpeed(int32_t speed){
 
 
 	outp(0x43, 0x36);
-	outp(0x40, TaskServiceRate);			// todo will this work 16 bit
-	outp(0x40, TaskServiceRate >> 8);
+	outp(0x40, TaskServiceRate  & 0x000000FF);
+	outp(0x40, (TaskServiceRate & 0x0000FF00) >> 8);
+	
 	_enable();
 }
 
 uint16_t TS_SetTimer(int32_t TickBase){
 
 	uint16_t speed;
-	speed =   1192030L / TickBase;
+	speed =   1193180L / TickBase;
 	//speed = 1192030L / 35;
 	// ~ 34058
 
@@ -86,7 +87,7 @@ uint16_t TS_SetTimer(int32_t TickBase){
 		TS_SetClockSpeed(speed);
 	}
 
-	return (speed);
+	return speed;
 }
 
 void TS_SetTimerToMaxTaskRate(void){

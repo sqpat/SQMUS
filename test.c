@@ -93,8 +93,8 @@ uint16_t currentsong_secondary_channels;
 uint16_t currentsong_num_instruments;       // 0-127
 
 uint16_t currentsong_play_timer;
-uint16_t currentsong_int_count;
-int16_t currentsong_ticks_to_process;
+uint32_t currentsong_int_count;
+int32_t currentsong_ticks_to_process;
 
 
 #define MUS_SEGMENT 	0x6000
@@ -134,100 +134,125 @@ int16_t MUS_Parseheader(byte __far *data){
 volatile int16_t called = 0;
 volatile int16_t finishplaying = 0;
 
+#define MUS_EVENT_CHANGE_INSTRUMENT 	0
+#define MUS_EVENT_BANK_SELECT 			1
+#define MUS_EVENT_MODULATION 			2
+#define MUS_EVENT_VOLUME 				3
+#define MUS_EVENT_PAN 					4
+#define MUS_EVENT_EXPRESSION 			5
+#define MUS_EVENT_REVERB 				6
+#define MUS_EVENT_CHORUS 				7
+#define MUS_EVENT_SUSTAIN 				8
+#define MUS_EVENT_SOFT	 				9
+#define MUS_EVENT_ALL_SOUNDS_OFF		10
+#define MUS_EVENT_ALL_NOTES_OFF_FADE	11
+#define MUS_EVENT_MONO	 				12
+#define MUS_EVENT_POLY	 				13
+#define MUS_EVENT_RESET_CONTROLLERS	 	14
+#define MUS_EVENT_UNIMPLEMENTED			15
+
 int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, byte data){
 
 	// todo combine bytes and switch case a word
+	switch (controllernumber){
 
-	if (channel == 0){
-		// change instrument
-		printf_implemented("%hhx %hhx: change instrument?", controllernumber, data);
-		AL_ProgramChange(channel, data);
-	} else if (channel == 1 && (controllernumber == 0 || controllernumber == 32)){
-		// bank select, 0 by default
-		printf("%hhx %hhx: bank select?", controllernumber, data);
-	} else if (channel == 2 && controllernumber == 1){
-		// modulation (vibrato frequency)
-		printf("%hhx %hhx: modulation", controllernumber, data);
-	} else if (channel == 3 && controllernumber == 7){
-		// volume 0 - 127. 100 is normal?
-		printf_implemented("%hhx %hhx: volume", controllernumber, data);
-		AL_SetChannelVolume(channel, data);
-	} else if (channel == 4 && controllernumber == 10){
-		// pan (balance) 0 left 64 center 127 right
-		printf_implemented("%hhx %hhx: pan", controllernumber, data);
-		AL_SetChannelPan(channel, data);
+		case MUS_EVENT_CHANGE_INSTRUMENT:
+			// change instrument
+			printf_implemented("%hhx %hhx: change instrument?", controllernumber, data);
+			AL_ProgramChange(channel, data);
+			break;
 
-	} else if (channel == 5 && controllernumber == 11){
-		// expression
-		printf("%hhx %hhx: expression", controllernumber, data);
-	} else if (channel == 6 && controllernumber == 91){
-		// reverb depth
-		printf("%hhx %hhx: reverb", controllernumber, data);
-	} else if (channel == 7 && controllernumber == 93){
-		// chorus depth
-		printf("%hhx %hhx: chorus", controllernumber, data);
-	} else if (channel == 8 && controllernumber == 64){
-		// sustain pedal
-		printf("%hhx %hhx: sustain pedal", controllernumber, data);
-	} else if (channel == 9 && controllernumber == 67){
-		// soft pedal
-		printf("%hhx %hhx: soft pedal", controllernumber, data);
-	} else {
-		//printf("%hhx %hhx: BAD CONTROLLER?", controllernumber, data);
-		return 0;
+		case MUS_EVENT_BANK_SELECT:
+			// bank select, 0 by default
+			printf("%hhx %hhx: bank select?", controllernumber, data);
+			break;
+		
+		case MUS_EVENT_MODULATION:
+			// modulation (vibrato frequency)
+			printf("%hhx %hhx: modulation", controllernumber, data);
+			break;
+		case MUS_EVENT_VOLUME:
+			// volume 0 - 127. 100 is normal?
+			printf_implemented("%hhx %hhx: volume", controllernumber, data);
+			AL_SetChannelVolume(channel, data);
+			break;
+		case MUS_EVENT_PAN:
+			// pan (balance) 0 left 64 center 127 right
+			printf_implemented("%hhx %hhx: pan", controllernumber, data);
+			AL_SetChannelPan(channel, data);
+
+			break;
+		case MUS_EVENT_EXPRESSION:
+			// expression
+			printf("%hhx %hhx: expression", controllernumber, data);
+			break;
+		case MUS_EVENT_REVERB:
+			// reverb depth
+			printf("%hhx %hhx: reverb", controllernumber, data);
+			break;
+		case MUS_EVENT_CHORUS:
+			// chorus depth
+			printf("%hhx %hhx: chorus", controllernumber, data);
+			break;
+		case MUS_EVENT_SUSTAIN:
+			// sustain pedal
+			printf("%hhx %hhx: sustain pedal", controllernumber, data);
+			break;
+		case MUS_EVENT_SOFT:
+			// soft pedal
+			printf("%hhx %hhx: soft pedal", controllernumber, data);
+			break;
+
+		case MUS_EVENT_ALL_SOUNDS_OFF:
+		case MUS_EVENT_ALL_NOTES_OFF_FADE:
+			printf_implemented("%hhx: turn all notes off", controllernumber);
+			AL_AllNotesOff(channel);
+			break;
+
+
+		//case MUS_EVENT_MONO:
+			// mono (one note on channel)
+			//printf("%hhx: turn channel mono", controllernumber);
+			// IGNORED in midi mode. used by opl2
+			//break;
+		//case MUS_EVENT_POLY:
+			// poly (multiple notes on channel)
+			//printf("%hhx: turn channel poly", controllernumber);
+			// IGNORED in midi mode. used by opl2
+			//break;
+		case MUS_EVENT_RESET_CONTROLLERS:
+			// reset all controllers for this channel
+			printf_implemented("%hhx: reset all channel controllers", controllernumber);
+
+			AL_ResetVoices();
+			AL_SetChannelVolume(channel, AL_DefaultChannelVolume);
+			AL_SetChannelPan(channel, 64);
+			AL_SetChannelDetune(channel, 0);
+
+			break;
+		case MUS_EVENT_UNIMPLEMENTED:
+			// never implemented?
+			printf("%hhx: unimplemented event?\n", controllernumber);
+			break;
+	
+		default:
+			return 0;
+
 	}
 
 	return 1;
 }
-
-int16_t MUS_ProcessSystemEvent(byte channel, byte controllernumber){
-
-	// todo combine bytes and switch case a word
-
-	if (channel == 10 && controllernumber == 120){
-		// turn all sounds off no fade
-		printf_implemented("%hhx: turn all notes off no fade", controllernumber);
-		AL_AllNotesOff(channel);
-
-	} else if (channel == 11 && controllernumber == 123){
-		// turn all sounds off with fade
-		printf_implemented("%hhx: turn all notes off with fade", controllernumber);
-		AL_AllNotesOff(channel);
-
-	} else if (channel == 12 && controllernumber == 126){
-		// mono (one note on channel)
-		printf("%hhx: turn channel mono", controllernumber);
-		// IGNORED in midi mode. used by opl2
-	} else if (channel == 13 && controllernumber == 127){
-		// poly (multiple notes on channel)
-		printf("%hhx: turn channel poly", controllernumber);
-		// IGNORED in midi mode. used by opl2
-	} else if (channel == 14 && controllernumber == 121){
-		// reset all controllers for this channel
-		printf_implemented("%hhx: reset all channel controllers", controllernumber);
-
-		AL_ResetVoices();
-		AL_SetChannelVolume(channel, AL_DefaultChannelVolume);
-		AL_SetChannelPan(channel, 64);
-		AL_SetChannelDetune(channel, 0);
-
-	} else if (channel == 15){
-		// never implemented?
-		printf("%hhx: unimplemented event?\n", controllernumber);
-	} else {
-		return 0;
-	}
-
-	return 1;
-}
-
-
 
 
 void MUS_ServiceRoutine(){
-	
+
+	if (finishplaying){
+		return;
+	}
+
+
 	// TODO: actually get the proper amount of time to pass.
-	currentsong_ticks_to_process += MUS_INTERRUPT_RATE;
+	currentsong_ticks_to_process ++;
 	printf_implemented("INT CALLED (#%i) \n", currentsong_int_count);
 
 	while (currentsong_ticks_to_process >= 0){
@@ -293,14 +318,9 @@ void MUS_ServiceRoutine(){
 				// System Event
 				{
 					byte controllernumber = currentlocation[1] & 0x7F;
-					int16_t result = MUS_ProcessSystemEvent(channel, controllernumber);
+					int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, 0);
 					if (!result){
-						// or do we read value?
-						byte value = 0;
-						result =  MUS_ProcessControllerEvent(channel, controllernumber, value);
-						if (!result){
-							printf("BAD SYSTEM EVENT?? 0x%hhx %0x\n", controllernumber, value);
-						}
+						printf("A BAD SYSTEM EVENT?? 0x%hhx %0x\n", controllernumber, 0);
 					}
 									
 					printf_implemented("\n");
@@ -312,15 +332,11 @@ void MUS_ServiceRoutine(){
 			case 4:
 				// Controller
 				{
-					byte value 			  = currentlocation[1]; // values above 127 used for instrument change & 0x7F; ?
-					byte controllernumber = currentlocation[2]; // values above 127 used for instrument change & 0x7F;
+					byte controllernumber = currentlocation[1]; // values above 127 used for instrument change & 0x7F;
+					byte value 			  = currentlocation[2]; // values above 127 used for instrument change & 0x7F; ?
 					int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, value);
 					if (!result){
-						result = MUS_ProcessSystemEvent(channel, controllernumber);
-						if (!result){
-							printf("BAD SYSTEM EVENT?? 0x%hhx %0x\n", controllernumber, value);
-						}
-
+						printf("B BAD SYSTEM EVENT?? %hhx %hhx %hhx\n", eventbyte, value, controllernumber);
 					}
 							
 					
@@ -333,7 +349,7 @@ void MUS_ServiceRoutine(){
 			case 5:
 				// End of Measure
 				// do nothing..
-				printf("End of Measure\n");
+				//printf("End of Measure\n");
 
 				break;
 			case 6:
@@ -362,7 +378,7 @@ void MUS_ServiceRoutine(){
 			delay_amt <<= 8;
 			lastflag = currentlocation[0];
 			delay_amt += (lastflag &0x7F);
-			// todo properly handle multibyte? int32t?
+
 			printf_implemented("  Read delay byte: 0x%x current delay: 0x%lx \n", lastflag, delay_amt);
 			lastflag &= 0x80;
 			currentsong_playing_offset++;
@@ -383,84 +399,79 @@ void MUS_ServiceRoutine(){
 
 
 void sigint_catcher(int sig) {
-
 	TS_Shutdown();
-
 	exit(sig);
-
 }
 
 int16_t main(void) {
 
-		int16_t result;
-		FILE* fp = fopen("DEMO1.MUS", "rb");
-		uint16_t filesize;
-		if (fp){
+	int16_t result;
+	int8_t filename[12] = "D_TENSE.MUS";
+	FILE* fp = fopen(filename, "rb");
+	uint16_t filesize;
+	if (fp){
+		fseek(fp, 0, SEEK_END);
+		filesize = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+		// where we're going, we don't need DOS's permission...
+		far_fread(MUS_LOCATION, filesize, 1, fp);
+		fclose(fp);
+		result = MUS_Parseheader(MUS_LOCATION);
 
+		printf("Loaded %s into memory location 0x%lx successfully...\n", filename, MUS_LOCATION);
 
-			fseek(fp, 0, SEEK_END);
-			filesize = ftell(fp);
-			fseek(fp, 0, SEEK_SET);
-			// where we're going, we don't need DOS's permission...
-			far_fread(MUS_LOCATION, filesize, 1, fp);
-			fclose(fp);
-			result = MUS_Parseheader(MUS_LOCATION);
-
-			printf("Loaded DEMO1.MUS into memory location 0x%lx successfully...\n", MUS_LOCATION);
-
-			printf("Enabling AdLib...\n");
-		 	if (!AL_Init()){
-				printf("Error enabling adlib!\n");
-        		return 0;
-				
-			}
-
-
-			printf("Scheduling interrupt\n");
-
-		    signal(SIGINT, sigint_catcher);
-
-
-			TS_Startup();
-			TS_ScheduleTask(MUS_ServiceRoutine, MUS_INTERRUPT_RATE);
-			TS_Dispatch();
-			
-			printf("Interrupt scheduled at %i interrupts per second\n", MUS_INTERRUPT_RATE);
-
-			printf("Now looping until keypress\n");
-
-			while ( !kbhit()){
-				if (called){
-					called = 0;
-				}
-				if (finishplaying){
-					break;
-				}
-			}
-
-			if (finishplaying){
-				printf("Song Finished, shutting down interrupt...\n");
-			} else {
-				printf("Detected keypress, shutting down interrupt...\n");
-			}
-
-
-			TS_Shutdown();
-
-			printf("Shut down interrupt, exiting program...\n");
-
-
-
-
-
-
-		} else {
-			printf("Error: Could not find DEMO1.MUS");
+		printf("Enabling AdLib...\n");
+		if (!AL_Detect()){
+			printf("Error detecting adlib!\n");
+			return 0;
+		}
+		if (!AL_Init()){
+			printf("Error enabling adlib!\n");
+			return 0;
 		}
 
+		printf("Scheduling interrupt\n");
+		signal(SIGINT, sigint_catcher);
 
+		TS_Startup();
+		TS_ScheduleTask(MUS_ServiceRoutine, MUS_INTERRUPT_RATE);
+		TS_Dispatch();
+		
+		printf("Interrupt scheduled at %i interrupts per second\n", MUS_INTERRUPT_RATE);
 
+		printf("Now looping until keypress\n");
 
+		while (!kbhit()){
+			if (called){
+				uint16_t val1 = currentsong_int_count / (60 * MUS_INTERRUPT_RATE);
+				uint16_t val2 = (currentsong_int_count / (MUS_INTERRUPT_RATE)) % 60;
+				uint16_t val3 = (1000L * (currentsong_int_count % (MUS_INTERRUPT_RATE))) / (MUS_INTERRUPT_RATE);
+				cprintf("\rPlaying %s ... %2i:%02i.%03i  ", filename,
+					val1, 
+					val2,
+					val3 
+					);
 
-        return 0;
+			}
+			if (finishplaying){
+				break;
+			}
+		}
+
+		if (finishplaying){
+			printf("Song Finished, shutting down interrupt...\n");
+		} else {
+			printf("Detected keypress, shutting down interrupt...\n");
+		}
+
+		TS_Shutdown();
+
+		printf("Shut down interrupt, exiting program...\n");
+
+	} else {
+		printf("Error: Could not find DEMO1.MUS");
+	}
+
+	return 0;
+
 }
