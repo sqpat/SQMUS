@@ -353,6 +353,7 @@ uint8_t        AdLibVoiceReserved[VOICE_COUNT * 2];
 int8_t         AdLibStereoOn = 0;
 AdLibVoiceList Voice_Pool;
 //#define NULL 0
+int8_t channelonoff[16];
 
 
 void AL_Remove (AdLibVoiceList* listhead, AdLibVoice * item) {
@@ -570,7 +571,7 @@ void AL_SetVoicePitch(int8_t voice){
     voc  = (voice >= VOICE_COUNT) ? voice - VOICE_COUNT : voice;
     channel = AdLibVoices[voice].channel;
 
-    if (channel == 9){  // drum
+    if (channel == PERCUSSION_CHANNEL){  // drum
         patch = AdLibVoices[voice].key + 128;
         note16  = ADLIB_TimbreBank[patch].Transpose;
     } else {
@@ -677,14 +678,14 @@ void AL_SetVoiceTimbre (int8_t voice) {
 
    channel = AdLibVoices[voice].channel;
 
-    if (channel == 9) {
+    if (channel == PERCUSSION_CHANNEL) {
         patch = AdLibVoices[voice].key + 128;
     } else {
         patch = AdLibChannels[channel].Timbre;
     }
 
     if (AdLibVoices[voice].timbre == patch){
-//        return;       // TODO FIX: this should be enabled but it seems to cause some bad instruments
+        return;       // TODO FIX: this should be enabled but it seems to cause some bad instruments
     }
 
     //printf ("\nplay with timbre %i %i %i\n", patch, channel, voice);
@@ -803,7 +804,7 @@ void AL_SetPitchBend(uint8_t channel, uint8_t msb){
     AdLibVoice  *voice;
 
     // We only play channels 1 through 10
-    if (channel > MAX_MUS_CHANNEL){
+    if (channel > MAX_MUS_CHANNEL && channel != PERCUSSION_CHANNEL){
         return;
     }
 
@@ -833,8 +834,10 @@ void AL_NoteOff (uint8_t channel, uint8_t key) {
     uint16_t port;
     uint8_t  voc;
 
+    
     // We only play channels 1 through 10
-    if (channel > MAX_MUS_CHANNEL) {
+    if (channel > MAX_MUS_CHANNEL && channel != PERCUSSION_CHANNEL) {
+        printf("bad note off channel %i\n", channel);
         return;
     }
 
@@ -844,6 +847,9 @@ void AL_NoteOff (uint8_t channel, uint8_t key) {
         printf("couldn't find voice to note off!\n");
         return;
     }
+
+    //printf("%i OFF\t", channel);
+    channelonoff[channel] = 0;
 
     AdLibVoices[voice].status = NOTE_OFF;
 
@@ -860,7 +866,8 @@ void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume) {
     int8_t voice;
 
     // We only play channels 1 through 10
-    if (channel > MAX_MUS_CHANNEL) {
+    if (channel > MAX_MUS_CHANNEL && channel != PERCUSSION_CHANNEL) {
+        printf("bad note on channel %i\n", channel);
         return;
     }
 
@@ -873,16 +880,23 @@ void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume) {
    voice = AL_AllocVoice(); // removes voice from free voice pool
 
     if (voice == VOICE_NOT_FOUND){
-        if (AdLibChannels[9].Voices.start) {
-            AL_NoteOff(9, AdLibChannels[9].Voices.start->key);
+        // kill oldest channel?
+        
+        if (AdLibChannels[PERCUSSION_CHANNEL].Voices.start) {
+            AL_NoteOff(PERCUSSION_CHANNEL, AdLibChannels[PERCUSSION_CHANNEL].Voices.start->key);
             voice = AL_AllocVoice();
         }
+        printf ("killed channel?");
+        
         if (voice == VOICE_NOT_FOUND) {
             printf("voice not found! B");
-
             return;
         }
     }
+
+    //printf("%i ON\t", channel);
+    channelonoff[channel] = 1;
+
     /*
     printf("\nfound voice %hhx %hhx %hhx (%hhx) %hhx\n", key, channel, volume, 
         volume == -1 ? AdLibChannels[channel].LastVolume : volume,
@@ -954,7 +968,7 @@ void AL_SetChannelVolume (uint8_t channel, uint8_t volume){
 void AL_SetChannelPan (uint8_t channel, uint8_t pan){
 
     // Don't pan drum sounds
-    if (channel != 9) {
+    if (channel != PERCUSSION_CHANNEL) {
         AdLibVoice *voice;
         AdLibChannels[channel].Pan = pan;
         voice = AdLibChannels[channel].Voices.start;

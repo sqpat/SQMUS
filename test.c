@@ -439,6 +439,28 @@ int16_t main(void) {
 
 		while (!kbhit()){
 			if (called){
+
+				cprintf("\r%i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i", 
+					channelonoff[0],
+					channelonoff[1],
+					channelonoff[2],
+					channelonoff[3],
+					channelonoff[4],
+					channelonoff[5],
+					channelonoff[6],
+					channelonoff[7],
+					channelonoff[8],
+					channelonoff[9],
+					channelonoff[10],
+					channelonoff[11],
+					channelonoff[12],
+					channelonoff[13],
+					channelonoff[14],
+					channelonoff[15]
+					
+					);
+
+				/*
 				uint16_t val1 = currentsong_int_count / (60 * MUS_INTERRUPT_RATE);
 				uint16_t val2 = (currentsong_int_count / (MUS_INTERRUPT_RATE)) % 60;
 				uint16_t val3 = (1000L * (currentsong_int_count % (MUS_INTERRUPT_RATE))) / (MUS_INTERRUPT_RATE);
@@ -449,6 +471,7 @@ int16_t main(void) {
 					currentsong_int_count
 					);
 
+				*/
 			}
 			if (finishplaying){
 				break;
