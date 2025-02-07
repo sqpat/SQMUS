@@ -151,14 +151,14 @@ volatile int16_t finishplaying = 0;
 #define MUS_EVENT_RESET_CONTROLLERS	 	14
 #define MUS_EVENT_UNIMPLEMENTED			15
 
-int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, byte data){
+int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, uint8_t data){
 
 	// todo combine bytes and switch case a word
 	switch (controllernumber){
 
 		case MUS_EVENT_CHANGE_INSTRUMENT:
 			// change instrument
-			printf_implemented("%hhx %hhx: change instrument?", controllernumber, data);
+			printf_implemented("%hhx %hhx: change instrument?\n", controllernumber, data);
 			AL_ProgramChange(channel, data);
 			break;
 
@@ -173,12 +173,12 @@ int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, byte dat
 			break;
 		case MUS_EVENT_VOLUME:
 			// volume 0 - 127. 100 is normal?
-			printf_implemented("%hhx %hhx: volume", controllernumber, data);
+			printf_implemented("%hhx %hhx: volume\n", controllernumber, data);
 			AL_SetChannelVolume(channel, data);
 			break;
 		case MUS_EVENT_PAN:
 			// pan (balance) 0 left 64 center 127 right
-			printf_implemented("%hhx %hhx: pan", controllernumber, data);
+			printf_implemented("%hhx %hhx: pan\n", controllernumber, data);
 			AL_SetChannelPan(channel, data);
 
 			break;
@@ -251,7 +251,6 @@ void MUS_ServiceRoutine(){
 	}
 
 
-	// TODO: actually get the proper amount of time to pass.
 	currentsong_ticks_to_process ++;
 	printf_implemented("INT CALLED (#%i) \n", currentsong_int_count);
 
@@ -286,13 +285,11 @@ void MUS_ServiceRoutine(){
 				// Play Note
 				{
 					byte value 			  = currentlocation[1];
-					byte volume;
+					byte volume = -1;  		// -1 means repeat..
 					byte key		  = value & 0x7F;
 					if (value & 0x80){
 						volume = currentlocation[2] & 0x7F;
 						increment++;
-					} else {
-						volume = -1;
 					}
 
 					printf_implemented("play note 0x%hhx\n", key);
@@ -309,9 +306,9 @@ void MUS_ServiceRoutine(){
 					byte value 			  = currentlocation[1];
 					// todo do we use a 2nd value for lsb/msb?
 					
-					printf_implemented("bend channel by 0x%hhx\n", value);
+					printf("bend channel by 0x%hhx\n", value);
 					increment++;
-					AL_SetPitchBend (channel, 0, value); // todo? 2nd value
+					AL_SetPitchBend (channel, value); // todo? 2nd value
 				}
 				break;
 			case 3:
@@ -405,7 +402,7 @@ void sigint_catcher(int sig) {
 int16_t main(void) {
 
 	int16_t result;
-	int8_t filename[12] = "D_TENSE.MUS";
+	int8_t filename[13] = "D_RUNNI2.MUS";
 	FILE* fp = fopen(filename, "rb");
 	uint16_t filesize;
 	if (fp){

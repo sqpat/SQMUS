@@ -356,43 +356,44 @@ AdLibVoiceList Voice_Pool;
 
 
 void AL_Remove (AdLibVoiceList* listhead, AdLibVoice * item) {
-    AdLibVoice **head = &listhead->start;
-    AdLibVoice **tail = &listhead->end;
 
     // head is prevmost
     // tail is nextmost
 
     if (item->prev == NULL) {   // was head
-        *head = item->next;
+        listhead->start = item->next;
     } else {
         item->prev->next = item->next;
     }
 
     if (item->next == NULL){    // was tail
-        *tail = item->prev;
+        listhead->end = item->prev;
     } else {
         item->next->prev = item->prev;
     }
-
     item->next = NULL;
     item->prev = NULL;
 
 }
 
 void AL_AddToTail(AdLibVoiceList* listhead, AdLibVoice* item) {
-    AdLibVoice **head = &listhead->start;
-    AdLibVoice **tail = &listhead->end;
 
-    item->next = NULL;
-    item->prev = *tail;
+    // head is prevmost
+    // tail is nextmost
 
-    if (*tail) {
-        (*tail)->next = item;
+    item->next = NULL;           // new tail has no next (tail is nextmost)
+    item->prev = listhead->end;  // prev connects to current (soon to be prior) end...
+
+    if (listhead->end) {
+        // connect prior end to this (if it existed)
+        (listhead->end)->next = item;
     } else {
-        *head = item;
+        // list was empty
+        listhead->start = item;
     }
 
-    *tail = item;
+    // this is the new tail
+    listhead->end = item;
 
 }
 
@@ -412,9 +413,21 @@ int8_t AL_AllocVoice() {
 
     if (Voice_Pool.start) {
         voice = Voice_Pool.start->num;
-        AL_Remove(&Voice_Pool, &AdLibVoices[voice]);
+        // inline AL_Remove. special case so lets make assumptions.
+
+        // prev is null
+        if (Voice_Pool.start->next){
+            Voice_Pool.start->next->prev = NULL;
+        }
+        
+        Voice_Pool.start = Voice_Pool.start->next;
+        AdLibVoices[voice].next = NULL; // prev was already NULL
+
+        //AL_Remove(&Voice_Pool, &AdLibVoices[voice]);
         return voice;
     }
+
+    printf("voice not found! A");
 
     return VOICE_NOT_FOUND;
 }
@@ -605,7 +618,6 @@ void AL_SetVoiceVolume (int8_t voice) {
     uint8_t port;
     uint8_t voc;
     uint32_t t1;
-    uint32_t t2;
     uint8_t volume;
     AdLibTimbre *timbre;
 
@@ -622,8 +634,8 @@ void AL_SetVoiceVolume (int8_t voice) {
 
     // amplitude
     t1  = AdLibVoiceLevels[slot][port];
-    t1 *= (velocity + 0x80);
-    t1  = (t1 * AdLibChannels[channel].Volume) >> 15;   // todo gross
+    t1 *= (((int16_t)velocity) + 0x80);
+    t1  = (t1 * ((int16_t)AdLibChannels[channel].Volume)) >> 15;   // todo gross
 
     volume  = t1 ^ 63;
     volume |= AdLibVoiceKsls[slot][port];
@@ -632,12 +644,13 @@ void AL_SetVoiceVolume (int8_t voice) {
 
    // Check if this timbre is Additive
     if (timbre->Feedback & 0x01) {
+        uint32_t t2;
         slot = slotVoice[voc][0];
 
         // amplitude
         t2  = AdLibVoiceLevels[slot][port];
-        t2 *= (velocity + 0x80);
-        t2  = (AdLibChannels[channel].Volume * t1) >> 15;
+        t2 *= (((int16_t)velocity) + 0x80);
+        t2  = (t1 * ((int16_t)AdLibChannels[channel].Volume)) >> 15;
 
         volume  = t2 ^ 63;
         volume |= AdLibVoiceKsls[slot][port];
@@ -671,11 +684,14 @@ void AL_SetVoiceTimbre (int8_t voice) {
     }
 
     if (AdLibVoices[voice].timbre == patch){
-        return;
+//        return;       // TODO FIX: this should be enabled but it seems to cause some bad instruments
     }
+
+    //printf ("\nplay with timbre %i %i %i\n", patch, channel, voice);
 
     AdLibVoices[voice].timbre = patch;
     timbre = &ADLIB_TimbreBank[patch];
+
 
     port = AdLibVoices[voice].port;
     voc  = (voice >= VOICE_COUNT) ? voice - VOICE_COUNT : voice;
@@ -702,8 +718,8 @@ void AL_SetVoiceTimbre (int8_t voice) {
     slot = slotVoice[voc][1];
 
     // play the note?
-    //AL_SendOutput(port, 0xC0 + voc, (timbre->Feedback & 0x0F) | 0x30);
-    AL_SendOutputToPort(ADLIB_PORT, 0xC0 + voice, timbre->Feedback);
+    AL_SendOutput(port, 0xC0 + voc, (timbre->Feedback & 0x0F) | 0x30);
+    //AL_SendOutputToPort(ADLIB_PORT, 0xC0 + voice, timbre->Feedback);
 
 
 
@@ -781,7 +797,7 @@ void AL_ControlChange (uint8_t channel, uint8_t type, uint8_t data){
 */
 
 
-void AL_SetPitchBend(uint8_t channel, uint8_t lsb, uint8_t msb){    
+void AL_SetPitchBend(uint8_t channel, uint8_t msb){    
     int16_t_union  pitchbend;
     uint32_t  TotalBend;
     AdLibVoice  *voice;
@@ -792,7 +808,7 @@ void AL_SetPitchBend(uint8_t channel, uint8_t lsb, uint8_t msb){
     }
 
     pitchbend.b.bytehigh = msb;
-    pitchbend.b.bytelow = lsb;
+    pitchbend.b.bytelow = 0;
 
     AdLibChannels[channel].Pitchbend = pitchbend.hu;
 
@@ -825,6 +841,7 @@ void AL_NoteOff (uint8_t channel, uint8_t key) {
     voice = AL_GetVoice(channel, key);
 
     if (voice == VOICE_NOT_FOUND){
+        printf("couldn't find voice to note off!\n");
         return;
     }
 
@@ -853,7 +870,7 @@ void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume) {
         return;
     }
 
-   voice = AL_AllocVoice();
+   voice = AL_AllocVoice(); // removes voice from free voice pool
 
     if (voice == VOICE_NOT_FOUND){
         if (AdLibChannels[9].Voices.start) {
@@ -861,6 +878,8 @@ void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume) {
             voice = AL_AllocVoice();
         }
         if (voice == VOICE_NOT_FOUND) {
+            printf("voice not found! B");
+
             return;
         }
     }
@@ -874,18 +893,19 @@ void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume) {
     AdLibVoices[voice].key      = key;
     AdLibVoices[voice].channel  = channel;
     // last volume if -1
-    // todo i think this may not be the right volume
-    AdLibVoices[voice].velocity = volume == -1 ? AdLibChannels[channel].LastVolume : volume;
+    volume = volume == -1 ? AdLibChannels[channel].LastVolume : volume;
+
+    AdLibVoices[voice].velocity = volume;
     AdLibVoices[voice].status   = NOTE_ON;
 
-    AdLibChannels[channel].LastVolume = AdLibVoices[voice].velocity;
+    AdLibChannels[channel].LastVolume = volume;
 
     AL_AddToTail(&AdLibChannels[channel].Voices, &AdLibVoices[voice]);
 
     AL_SetVoiceTimbre(voice);
     AL_SetVoiceVolume(voice);
     AL_SetVoicePitch(voice);    // set freq..
-    //AL_SetVoicePan(voice);
+    AL_SetVoicePan(voice);
 }
 
 
@@ -993,8 +1013,8 @@ void AL_ResetVoices(){
             AdLibVoices[index].num = index;
             AdLibVoices[index].key = 0;
             AdLibVoices[index].velocity = 0;
-            AdLibVoices[index].channel = -1;
-            AdLibVoices[index].timbre = -1;
+            AdLibVoices[index].channel = 0xFF;
+            AdLibVoices[index].timbre = 0xFF;
             AdLibVoices[index].port = (index < VOICE_COUNT) ? 0 : 1;
             AdLibVoices[index].status = NOTE_OFF;
             AL_AddToTail(&Voice_Pool, &AdLibVoices[index]);
@@ -1090,8 +1110,8 @@ void AL_StereoOff() {
 
 void AL_Reset(void) {
     AL_SendOutputToPort(ADLIB_PORT, 1, 0x20);       // enable waveform select
-    AL_SendOutputToPort(ADLIB_PORT, 0x08, 0x40);    // turn off CSW mode
-    //AL_SendOutputToPort(ADLIB_PORT, 0x08, 0);     // (original apogee lib)
+    //AL_SendOutputToPort(ADLIB_PORT, 0x08, 0x40);    // turn off CSW mode
+    AL_SendOutputToPort(ADLIB_PORT, 0x08, 0);     // (original apogee lib)
 
     // Set the values: AM Depth, VIB depth & Rhythm
     AL_SendOutputToPort(ADLIB_PORT, 0xBD, 0);

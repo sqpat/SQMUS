@@ -94,7 +94,7 @@ int16_t AL_Init();
 int16_t AL_Detect();
 void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume);
 void AL_NoteOff (uint8_t channel, uint8_t key);
-void AL_SetPitchBend(uint8_t channel, uint8_t lsb, uint8_t msb);
+void AL_SetPitchBend(uint8_t channel, uint8_t msb);
 void AL_SetChannelPan (uint8_t channel, uint8_t pan);
 void AL_SetChannelVolume(uint8_t channel, uint8_t volume);
 void AL_AllNotesOff(uint8_t channel);
