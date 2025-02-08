@@ -456,18 +456,22 @@ int16_t main(void) {
 		}
 
 
-		printf("Enabling AdLib...\n");
-		// if (!AL_Detect()){
-		// 	printf("Error detecting adlib!\n");
-		// 	return 0;
-		// }
-		// if (!AL_Init()){
-		// 	printf("Error enabling adlib!\n");
-		// 	return 0;
-		// }
+		printf("Enabling Sound...\n");
+	
+	
+		if (OPL3detectHardware(0x388, 0, 0)){
+			printf("OPL3 Detected...\n");
+			OPL3initHardware(0x388, 0, 0);
+			printf("OPL3 Enabled...\n");
+		} else if (OPL2detectHardware(0x388, 0, 0)){
+			printf("OPL2 Detected...\n");
+			OPL2initHardware(0x388, 0, 0);
+			printf("OPL2 Enabled...\n");
+		} else {
+			printf("ERROR! No OPL hardware Detected!\n");
+			return 0;
+		}
 
-		//OPL2initHardware(0x388, 0, 0);
-		OPL3initHardware(0x388, 0, 0);
 		//OPLinitDriver();
 
 		printf("Scheduling interrupt\n");
