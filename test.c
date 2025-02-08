@@ -246,7 +246,7 @@ int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, uint8_t 
 }
 */
 
-volatile ulong	MLtime = 0;
+volatile uint32_t	MLtime = 0;
 
 
 
@@ -466,7 +466,8 @@ int16_t main(void) {
 		// 	return 0;
 		// }
 
-		OPL2initHardware(0x388, 0, 0);
+		//OPL2initHardware(0x388, 0, 0);
+		OPL3initHardware(0x388, 0, 0);
 		//OPLinitDriver();
 
 		printf("Scheduling interrupt\n");

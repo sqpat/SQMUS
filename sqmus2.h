@@ -121,7 +121,6 @@ extern	/*HINSTANCE*/ uint MLinstance;
 
 struct driverBlock {
 	int8_t	driverID;
-	int8_t	*name;
 	uint16_t	datasize;
 
 	int8_t	(*initDriver)(void);

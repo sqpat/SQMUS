@@ -312,13 +312,11 @@ struct OPLdata {
 };
 
 /* Driver descriptor */
-static char OPL2name[] = "OPL2 FM";
 
 struct OPLdata OPL2driverdata;
 
 struct driverBlock OPL2driver = {
 	DRV_OPL2,			// driverID
-	OPL2name,			// name
 	sizeof(struct OPLdata),		// datasize
 	
 	OPLinitDriver,
@@ -355,16 +353,11 @@ uint32_t	playingtime;
 uint32_t	playingticks;
 
 
-struct driverBlock	*playingdriver = &OPL2driver;
 
-/*
 
-static char OPL3name[] = "OPL3 FM";
 
 struct driverBlock OPL3driver = {
-	NULL,				// next
 	DRV_OPL3,			// driverID
-	OPL3name,			// name
 	sizeof(struct OPLdata),		// datasize
 	OPLinitDriver,
 	OPLdeinitDriver,
@@ -383,7 +376,10 @@ struct driverBlock OPL3driver = {
 	OPLchangeVolume,
 	OPLpauseMusic,
 	OPLunpauseMusic};
-*/
+
+
+struct driverBlock	*playingdriver = &OPL2driver;
+
 
 static uint8_t	OPLsinglevoice = 0;
 
