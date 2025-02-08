@@ -58,16 +58,16 @@ static uint16_t NotePitch[TUNE_COUNT][12] = {
 
 
 
-static int8_t slotVoice[VOICE_COUNT][2] = {
-    { 0, 3 },    // voice 0
-    { 1, 4 },    // 1
-    { 2, 5 },    // 2
-    { 6, 9 },    // 3
-    { 7, 10 },   // 4
-    { 8, 11 },   // 5
-    { 12, 15 },  // 6
-    { 13, 16 },  // 7
-    { 14, 17 },  // 8
+static int8_t slotVoice[VOICE_COUNT] = {
+    0 ,    // voice 0
+    1 ,    // 1
+    2 ,    // 2
+    6 ,    // 3
+    7 ,   // 4
+    8 ,   // 5
+    12 ,  // 6
+    13 ,  // 7
+    14 ,  // 8
 };
 
 // This table gives the offset of each slot within the chip.
@@ -79,7 +79,7 @@ static int8_t offsetSlot[NumChipSlots] = {
    16, 17, 18, 19, 20, 21
 };
 
-AdLibTimbre ADLIB_TimbreBank[256] = {
+AdLibTimbre ADLIB_TimbreBank[181] = {
     { { 33, 33 }, { 143, 6 }, { 242, 242 }, { 69, 118 }, { 0, 0 }, 8, 0 },
     { { 49, 33 }, { 75, 0 }, { 242, 242 }, { 84, 86 }, { 0, 0 }, 8, 0 },
     { { 49, 33 }, { 73, 0 }, { 242, 242 }, { 85, 118 }, { 0, 0 }, 8, 0 },
@@ -208,41 +208,7 @@ AdLibTimbre ADLIB_TimbreBank[256] = {
     { { 14, 208 }, { 0, 0 }, { 246, 79 }, { 0, 245 }, { 0, 3 }, 14, 0 },
     { { 38, 228 }, { 0, 0 }, { 255, 18 }, { 1, 22 }, { 0, 1 }, 14, 0 },
     { { 0, 0 }, { 0, 0 }, { 243, 246 }, { 240, 201 }, { 0, 2 }, 14, 0 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
+// percussion
     { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
     { { 0, 0 }, { 0, 0 }, { 252, 250 }, { 5, 23 }, { 2, 0 }, 14, 52 },
     { { 0, 1 }, { 2, 0 }, { 255, 255 }, { 7, 8 }, { 0, 0 }, 0, 48 },
@@ -295,46 +261,7 @@ AdLibTimbre ADLIB_TimbreBank[256] = {
     { { 1, 2 }, { 79, 0 }, { 250, 248 }, { 141, 181 }, { 0, 0 }, 7, 68 },
     { { 0, 0 }, { 0, 0 }, { 246, 246 }, { 12, 6 }, { 0, 0 }, 4, 48 },
     { { 33, 17 }, { 17, 0 }, { 163, 196 }, { 67, 34 }, { 2, 0 }, 13, 53 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
-    { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 },
+
     { { 16, 17 }, { 68, 0 }, { 248, 243 }, { 119, 6 }, { 2, 0 }, 8, 35 }
 };
 
@@ -353,7 +280,7 @@ uint8_t        AdLibVoiceReserved[VOICE_COUNT * 2];
 int8_t         AdLibStereoOn = 0;
 AdLibVoiceList Voice_Pool;
 //#define NULL 0
-int8_t channelonoff[16];
+int8_t channelonoff[CHANNEL_COUNT];
 
 
 void AL_Remove (AdLibVoiceList* listhead, AdLibVoice * item) {
@@ -409,24 +336,43 @@ void AL_AddToTail(AdLibVoiceList* listhead, AdLibVoice* item) {
    Retrieves a free voice from the voice pool.
 ---------------------------------------------------------------------*/
 
+int8_t lastid = 0;
+
 int8_t AL_AllocVoice() {
-    int8_t voice;
-
-    if (Voice_Pool.start) {
-        voice = Voice_Pool.start->num;
-        // inline AL_Remove. special case so lets make assumptions.
-
-        // prev is null
-        if (Voice_Pool.start->next){
-            Voice_Pool.start->next->prev = NULL;
-        }
-        
-        Voice_Pool.start = Voice_Pool.start->next;
-        AdLibVoices[voice].next = NULL; // prev was already NULL
-
-        //AL_Remove(&Voice_Pool, &AdLibVoices[voice]);
-        return voice;
+/*
+    int8_t i = lastid;
+    
+    lastid++;
+    if (lastid >= VOICE_COUNT * 2){
+        lastid = 0;
     }
+    return i;
+
+
+    for (i = 0; i < VOICE_COUNT * 2; i++){
+            
+        if (AdLibVoices[i].status == NOTE_OFF){
+            AL_Remove(&Voice_Pool, &AdLibVoices[i]);
+            return i;
+        }
+    }
+*/
+    int8_t voice;
+    if (Voice_Pool.start) {
+        AdLibVoice * ptr = Voice_Pool.start;
+        while (ptr && ptr->status == NOTE_ON){
+            printf("get next!\n");  // shouldnt happen
+            ptr = ptr->next;
+        }
+
+        if (ptr){
+            voice = Voice_Pool.start->num;
+            AL_Remove(&Voice_Pool, &AdLibVoices[voice]);
+            return voice;
+        }
+
+    }
+    
 
     printf("voice not found! A");
 
@@ -454,6 +400,7 @@ int8_t AL_GetVoice(uint8_t channel, uint8_t key) {
         voice = voice->next;
     }
 
+    printf("voice not found!");
     return VOICE_NOT_FOUND;
 }
 
@@ -462,11 +409,12 @@ int8_t AL_GetVoice(uint8_t channel, uint8_t key) {
 int16_t adlib_device = 1; // todo
 
 
-void AL_SendOutputToPort(int16_t port, uint8_t reg, uint8_t data) {
+void AL_SendOutputToPort(int16_t port, int16_t reg, uint8_t data) {
     int8_t delay;
-    // FILE* fp = fopen("adlib.txt", "ab");
-    // fprintf(fp, "outp 0x%x 0x%hhx 0x%x %hhx\n", port, reg, port+1, data);
-    // fclose(fp);
+	//   FILE* fp = fopen ("log2.txt", "ab");
+	//   fprintf(fp, "outp %03x, %02x outp %03x, %02x\n", port, reg, port+1, data);
+ 	//   fclose(fp);
+
     outp(port, reg);
 
     //   for(delay = 2; delay > 0 ; delay--)
@@ -487,7 +435,9 @@ void AL_SendOutputToPort(int16_t port, uint8_t reg, uint8_t data) {
 
 
 
-void AL_SendOutput(uint8_t port, uint8_t reg, uint8_t data){
+void AL_SendOutput(uint8_t port, int16_t reg, uint8_t data){
+
+    // todo use port in opl3 case?
 
     if(adlib_device){ //todo check for opl3?
 
@@ -509,6 +459,14 @@ void AL_SendOutput(uint8_t port, uint8_t reg, uint8_t data){
             AL_SendOutputToPort(ADLIB_PORT, reg, data);
 
 //        }
+    }
+}
+
+void AL_WriteChannel(uint8_t port, int16_t reg, uint8_t data1, uint8_t data2){
+
+    if(adlib_device){ //todo check for opl3?
+        AL_SendOutputToPort(ADLIB_PORT, reg+0, data1);
+        AL_SendOutputToPort(ADLIB_PORT, reg+3, data2);
     }
 }
 
@@ -563,7 +521,7 @@ void AL_SetVoicePitch(int8_t voice){
     uint8_t detune;
     uint8_t ScaleNote;
     uint8_t Octave;
-    uint16_t pitch;
+    int16_t_union pitch;
     uint8_t port;
     uint8_t voc;
 
@@ -572,7 +530,7 @@ void AL_SetVoicePitch(int8_t voice){
     channel = AdLibVoices[voice].channel;
 
     if (channel == PERCUSSION_CHANNEL){  // drum
-        patch = AdLibVoices[voice].key + 128;
+        patch = AdLibVoices[voice].key + 128 - 35;
         note16  = ADLIB_TimbreBank[patch].Transpose;
     } else {
         patch = AdLibChannels[channel].Timbre;
@@ -594,14 +552,14 @@ void AL_SetVoicePitch(int8_t voice){
     ScaleNote = note8 % 12;
     Octave    = note8 / 12;
 
-    pitch = OctavePitch[Octave] | NotePitch[detune][ScaleNote];
+    pitch.hu = OctavePitch[Octave] | NotePitch[detune][ScaleNote];
 
-    AdLibVoices[voice].pitchleft.hu = pitch;
+    AdLibVoices[voice].pitchleft = pitch;
 
-    pitch |= AdLibVoices[voice].status;
+    pitch.hu |= AdLibVoices[voice].status; // just NOTE_ON?
 
-    AL_SendOutput(port, 0xA0 + voc, pitch);
-    AL_SendOutput(port, 0xB0 + voc, pitch >> 8);
+    AL_SendOutput(port, 0xA0 + voc, pitch.b.bytelow);
+    AL_SendOutput(port, 0xB0 + voc, pitch.b.bytehigh);
 }
 
 
@@ -630,7 +588,7 @@ void AL_SetVoiceVolume (int8_t voice) {
     velocity = velocity & MAX_VELOCITY;
 
     voc  = (voice >= VOICE_COUNT) ? voice - VOICE_COUNT : voice;
-    slot = slotVoice[voc][1];
+    slot = slotVoice[voc] + 3;
     port = AdLibVoices[voice].port;
 
     // amplitude
@@ -646,7 +604,7 @@ void AL_SetVoiceVolume (int8_t voice) {
    // Check if this timbre is Additive
     if (timbre->Feedback & 0x01) {
         uint32_t t2;
-        slot = slotVoice[voc][0];
+        slot -= 3;
 
         // amplitude
         t2  = AdLibVoiceLevels[slot][port];
@@ -679,7 +637,7 @@ void AL_SetVoiceTimbre (int8_t voice) {
    channel = AdLibVoices[voice].channel;
 
     if (channel == PERCUSSION_CHANNEL) {
-        patch = AdLibVoices[voice].key + 128;
+        patch = AdLibVoices[voice].key + (128 - 35);
     } else {
         patch = AdLibChannels[channel].Timbre;
     }
@@ -696,12 +654,13 @@ void AL_SetVoiceTimbre (int8_t voice) {
 
     port = AdLibVoices[voice].port;
     voc  = (voice >= VOICE_COUNT) ? voice - VOICE_COUNT : voice;
-    slot = slotVoice[voc][0];
+    slot = slotVoice[voc];
     off  = offsetSlot[slot];
 
     AdLibVoiceLevels[slot][port] = 63 - (timbre->Level[0] & 0x3F);
     AdLibVoiceKsls[slot][port]   = timbre->Level[0] & 0xC0;
 
+/*
     // clear freq
     AL_SendOutput(port, 0xA0 + voc, 0);
     AL_SendOutput(port, 0xB0 + voc, 0);
@@ -739,6 +698,40 @@ void AL_SetVoiceTimbre (int8_t voice) {
     AL_SendOutput(port, 0x80 + off, timbre->Env2[1]);
     AL_SendOutput(port, 0x20 + off, timbre->SAVEK[1]);
     AL_SendOutput(port, 0xE0 + off, timbre->Wave[1]);
+
+    AL_SendOutput(port, 0x40 + off, timbre->Level[1]);  
+
+*/
+
+
+    // clear freq
+    AL_SendOutput(port, 0xA0 + voc, 0);
+    AL_SendOutput(port, 0xB0 + voc, 0);
+
+    // Let voice clear the release
+    AL_WriteChannel(port, 0x40 + off + 0, 0x3F, 0x3F);
+    AL_WriteChannel(port, 0x80 + off, 0xFF, 0xFF);
+
+    // instrument stuff
+    AL_WriteChannel(port, 0x20 + off, timbre->SAVEK[0] , timbre->SAVEK[1]);      //trem
+    AL_WriteChannel(port, 0x60 + off, timbre->Env1[0]  , timbre->Env1[1]);      //attack
+    AL_WriteChannel(port, 0x80 + off, timbre->Env2[0]  , timbre->Env2[1]);      //sustain?
+    AL_WriteChannel(port, 0xE0 + off, timbre->Wave[0]  , timbre->Wave[1]);      //sustain?
+
+    // play the note?
+    AL_SendOutput(port, 0xC0 + voc, (timbre->Feedback & 0x0F) | 0x30);
+    //    AL_SendOutput(port, 0xC0 + voc + 3, (timbre->Feedback & 0x0F) | 0x30);
+    
+    AL_WriteChannel(port, 0x40 + off, timbre->Level[0], 63);      
+
+    //AL_SendOutputToPort(ADLIB_PORT, 0xC0 + voice, timbre->Feedback);
+
+    slot += 3;
+    off = offsetSlot[slot];
+    AdLibVoiceLevels[slot][port] = 63 - (timbre->Level[1] & 0x3F);
+    AdLibVoiceKsls[slot][port]   = timbre->Level[1] & 0xC0;
+
+
 }
 
 
@@ -844,7 +837,7 @@ void AL_NoteOff (uint8_t channel, uint8_t key) {
     voice = AL_GetVoice(channel, key);
 
     if (voice == VOICE_NOT_FOUND){
-        printf("couldn't find voice to note off!\n");
+        //printf("couldn't find voice to note off!\n");
         return;
     }
 
@@ -873,11 +866,12 @@ void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume) {
 
     // turn off note
     if (volume == 0) {
+        printf("volume 0 note on?\n");
         AL_NoteOff(channel, key);
         return;
     }
 
-   voice = AL_AllocVoice(); // removes voice from free voice pool
+    voice = AL_AllocVoice(); // removes voice from free voice pool
 
     if (voice == VOICE_NOT_FOUND){
         // kill oldest channel?
@@ -892,6 +886,10 @@ void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume) {
             printf("voice not found! B");
             return;
         }
+    } else {
+        // FILE* fp = fopen ("log2.txt", "ab");
+        // fprintf(fp, "PLAY NOTE %i %i %i %i \n", channel, key, volume, voice);
+        // fclose(fp);    
     }
 
     //printf("%i ON\t", channel);
@@ -911,7 +909,6 @@ void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume) {
 
     AdLibVoices[voice].velocity = volume;
     AdLibVoices[voice].status   = NOTE_ON;
-
     AdLibChannels[channel].LastVolume = volume;
 
     AL_AddToTail(&AdLibChannels[channel].Voices, &AdLibVoices[voice]);
@@ -919,7 +916,9 @@ void AL_NoteOn (uint8_t channel, uint8_t key, int8_t volume) {
     AL_SetVoiceTimbre(voice);
     AL_SetVoiceVolume(voice);
     AL_SetVoicePitch(voice);    // set freq..
-    AL_SetVoicePan(voice);
+    //AL_SetVoicePan(voice);
+
+
 }
 
 
@@ -1023,7 +1022,7 @@ void AL_ResetVoices(){
     Voice_Pool.end   = NULL;
 
     for(index = 0; index < VOICE_COUNT * 2; index++) {
-        if (AdLibVoiceReserved[index] == false){
+        if (AdLibVoiceReserved[index] == false){  // todo whats this
             AdLibVoices[index].num = index;
             AdLibVoices[index].key = 0;
             AdLibVoices[index].velocity = 0;
@@ -1066,24 +1065,19 @@ void AL_FlushCard(){
 
     for(i = 0 ; i < VOICE_COUNT; i++) {
         if (AdLibVoiceReserved[i] == false) {
-            int8_t slot1 = offsetSlot[slotVoice[i][0]];
-            int8_t slot2 = offsetSlot[slotVoice[i][1]];
+            int16_t slot1 = offsetSlot[slotVoice[i]];
 
             AL_SendOutputToPort(ADLIB_PORT, 0xA0 + i, 0);
             AL_SendOutputToPort(ADLIB_PORT, 0xB0 + i, 0);   // key off
 
-            AL_SendOutputToPort(ADLIB_PORT, 0xE0 + slot1, 0);
-            AL_SendOutputToPort(ADLIB_PORT, 0xE0 + slot2, 0);
+            AL_WriteChannel(0, 0xE0 + slot1, 0, 0);
 
             // Set the envelope to be fast and quiet
-            AL_SendOutputToPort(ADLIB_PORT, 0x60 + slot1, 0xff);    // attack/decay max
-            AL_SendOutputToPort(ADLIB_PORT, 0x60 + slot2, 0xff);    // attack/decay max
-            AL_SendOutputToPort(ADLIB_PORT, 0x80 + slot1, 0xff);    // release max
-            AL_SendOutputToPort(ADLIB_PORT, 0x80 + slot2, 0xff);    // release max`
+            AL_WriteChannel(0, 0x60 + slot1, 0xff, 0xff);    // attack/decay max
+            AL_WriteChannel(0, 0x80 + slot1, 0xff, 0xff);    // release max
 
             // Maximum attenuation
-            AL_SendOutputToPort(ADLIB_PORT, 0x40 + slot1, 0xff);
-            AL_SendOutputToPort(ADLIB_PORT, 0x40 + slot2, 0xff);
+            AL_WriteChannel(0, 0x40 + slot1, 0xff, 0xff);
         }
     }
 }

@@ -88,8 +88,8 @@ uint16_t currentsong_looping;
 uint16_t currentsong_start_offset;
 uint16_t currentsong_playing_offset;
 uint16_t currentsong_length;
-uint16_t currentsong_primary_channels;
-uint16_t currentsong_secondary_channels;
+int16_t currentsong_primary_channels;
+int16_t currentsong_secondary_channels;
 uint16_t currentsong_num_instruments;       // 0-127
 
 uint16_t currentsong_play_timer;
@@ -114,7 +114,7 @@ int16_t MUS_Parseheader(byte __far *data){
 		printf("start offset:       0x%x\n",currentsong_start_offset);
 		printf("primary channels:   0x%x\n",currentsong_primary_channels);
 		printf("secondary channels: 0x%x\n",currentsong_secondary_channels);
-		printf("num instruments:    0x%x\n",currentsong_num_instruments);
+		printf("num instruments:    0x%x\n",currentsong_num_instruments);	// todo dynamically load the data from the main bank at startup to take less memory?
 
 
 		currentsong_playing_offset = currentsong_start_offset;
@@ -262,11 +262,22 @@ void MUS_ServiceRoutine(){
 		byte __far* currentlocation = MK_FP(MUS_SEGMENT, currentsong_playing_offset);
 		uint8_t eventbyte = currentlocation[0];
 		uint8_t event     = (eventbyte & 0x70) >> 4;
-		uint8_t channel   = (eventbyte & 0x0F);
+		int8_t  channel   = (eventbyte & 0x0F);
 		byte lastflag  = (eventbyte & 0x80);
-		uint32_t delay_amt = 0;
+		int32_t delay_amt = 0;
 
 		printf_implemented("%04x: %02x L: %hhi C: %hhi, EV: %hhi:\t", currentsong_playing_offset, eventbyte, (lastflag != 0), channel, event);
+
+
+		// todo is this the right way...?
+		if (channel > currentsong_primary_channels && channel < 10 && channel != PERCUSSION_CHANNEL){
+			printf("primary changed channel to percussion %i", channel);
+			channel = PERCUSSION_CHANNEL;
+		} else if ((channel - 10) > currentsong_secondary_channels && channel != PERCUSSION_CHANNEL){
+			//todo get rid of secondaries?
+			printf("secondary changed channel to percussion %i", channel);
+			channel = PERCUSSION_CHANNEL;
+		}
 
 		switch (event){
 			case 0:
@@ -379,11 +390,12 @@ void MUS_ServiceRoutine(){
 			lastflag &= 0x80;
 			currentsong_playing_offset++;
 		}
-
+		//printf("%li %li %hhx\n", currentsong_ticks_to_process, currentsong_ticks_to_process - delay_amt, eventbyte);
 		currentsong_ticks_to_process -= delay_amt;
 
 		//todo how to handle loop/end song plus last flag?
 		if (doing_loop){
+			// todo do we have to reset or something?
 			currentsong_playing_offset = currentsong_start_offset;
 		}
 
@@ -495,7 +507,7 @@ int16_t main(void) {
 
 
 	} else {
-		printf("Error: Could not find DEMO1.MUS");
+		printf("Error: Could not find %s", filename);
 	}
 
 	return 0;
