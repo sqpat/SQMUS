@@ -12,9 +12,7 @@
 #ifndef __MUSLIB_H_
 #define __MUSLIB_H_
 
-#ifndef __DEFTYPES_H_
-  #include "deftypes.h"
-#endif
+
 #include "test.h"
 
 /* Global Definitions */
@@ -39,7 +37,6 @@ struct MUSheader {
 //	uint16_t	instruments[...];	// table of used instruments
 };
 
-#ifndef __WINDOWS__
 
 /* OPL2 instrument */
 struct OPL2instrument {
@@ -57,7 +54,7 @@ struct OPL2instrument {
 /*0B*/	uint8_t	scale_2;	/* OP 2: key scale level */
 /*0C*/	uint8_t	level_2;	/* OP 2: output level */
 /*0D*/	uint8_t	unused;
-/*0E*/	sshort	basenote;	/* base note offset */
+/*0E*/	int16_t	basenote;	/* base note offset */
 };
 
 /* OP2 instrument file entry */
@@ -76,28 +73,16 @@ struct OP2instrEntry {
 #define OP2INSTRSIZE	sizeof(struct OP2instrEntry) // instrument size (36 uint8_ts)
 #define OP2INSTRCOUNT	(128 + 81-35+1)	// instrument count
 
-#endif /* __WINDOWS__ */
-
-#ifdef __cplusplus
-  extern "C" {
-#endif
 
 
 #define BT_EMPTY	0
 #define BT_CONV		1		// conventional memory buffer
 #define BT_EMS		2		// EMS memory buffer
 #define BT_XMS		3		// XMS memory buffer
-
-uint	MEMdetect(void);
-int	MEMload(int fd, ulong length, struct memoryBlock *block, uint memory);
-int	MEMfree(struct memoryBlock *block);
-int	MEMgetchar(struct memoryBlock *block);
-int	MEMrewind(struct memoryBlock *block);
+ 
 
 
-/* From MLKERNEL.C */
-#ifndef __WINDOWS__
-
+ 
 #define TIMER_CNT18_2	0		// INT 08h: system timer (18.2 Hz)
 #define TIMER_CNT140	1		// INT 08h: system timer (140 Hz)
 #define TIMER_RTC1024	2		// INT 70h: RTC periodic interrupt (1024 Hz)
@@ -108,25 +93,14 @@ int	MEMrewind(struct memoryBlock *block);
 
 #define TIMER_MIN	TIMER_CNT18_2
 #define TIMER_MAX	TIMER_RTC64
-
-#else
-
-#define TIMER_WIN35	0x100		// Windows Timer: low resolution (35Hz)
-#define TIMER_WIN70	0x101		// Windows Timer: medium resolution (70Hz)
-#define TIMER_WIN140	0x102		// Windows Timer: high resolution (140Hz)
-
-#define TIMER_MIN	TIMER_WIN35
-#define TIMER_MAX	TIMER_WIN140
-
-#endif /* __WINDOWS__ */
+ 
 
 void	MLplayerInterrupt(void);
 
 int	MLinitTimer(int mode);
 int	MLshutdownTimer(void);
 
-extern	volatile ulong	MLtime;
-extern	volatile uint	playingChannels;
+extern	volatile uint32_t	MLtime;
 
 #ifdef __WINDOWS__
 extern	/*HINSTANCE*/ uint MLinstance;
@@ -146,31 +120,29 @@ extern	/*HINSTANCE*/ uint MLinstance;
 //#define MF_xxx		1		//
 
 struct driverBlock {
-	struct driverBlock *next;
-	uint	driverID;
-	char	*name;
-	uint	datasize;
+	int8_t	driverID;
+	int8_t	*name;
+	uint16_t	datasize;
 
-	int	(*initDriver)(void);
-	int	(*deinitDriver)(void);
-	int	(*driverParam)(uint message, uint param1, void *param2);
-	int	(*loadBank)(int fd, uint bankNumber);
-	int	(*detectHardware)(uint port, uchar irq, uchar dma);
-	int	(*initHardware)(uint port, uchar irq, uchar dma);
-	int	(*deinitHardware)(void);
+	int8_t	(*initDriver)(void);
+	int8_t	(*deinitDriver)(void);
+	int8_t	(*driverParam)(uint16_t message, uint16_t param1, void *param2);
+	int8_t	(*loadBank)(int16_t fd, uint8_t bankNumber);
+	int8_t	(*detectHardware)(uint16_t port, uint8_t irq, uint8_t dma);
+	int8_t	(*initHardware)(uint16_t port, uint8_t irq, uint8_t dma);
+	int8_t	(*deinitHardware)(void);
 
-	void	(*playNote)(uint channel, uchar note, int volume);
-	void	(*releaseNote)(uint channel, uchar note);
-	void	(*pitchWheel)(uint channel, int pitch);
-	void	(*changeControl)(uint channel, uchar controller, int value);
+	void	(*playNote)(uint8_t channel, uint8_t note, int8_t volume);
+	void	(*releaseNote)(uint8_t channel, uint8_t note);
+	void	(*pitchWheel)(uint8_t channel, int8_t pitch);
+	void	(*changeControl)(uint8_t channel, uint8_t controller, uint8_t value);
 	void	(*playMusic)();
 	void	(*stopMusic)();
-	void	(*changeVolume)(uint volume);
+	void	(*changeVolume)(int8_t volume);
 	void	(*pauseMusic)();
 	void	(*unpauseMusic)();
-	int	(*sendMIDI)(uint command, uint par1, uint par2);
+	int8_t	(*sendMIDI)(uint8_t command, uint8_t par1, uint8_t par2);
 
-	uint	state;		/* 0-not initialized, <>0-initialized */
 };
 
 /* driverParam message codes */
@@ -205,105 +177,38 @@ struct driverBlock {
   #define DPP_CHORUS_DELAYFB	7	/* short delay (FB) */
 
 #endif /* 0 */
-
-/* From MLAPI.C */
-extern struct musicBlock *MLmusicBlocks[];
-extern struct driverBlock *MLdriverList;
-
-void	MLinit(uint instance);
-void	MLdeinit(void);
-struct driverBlock *MLfindDriver(uint driverID);
-int	MLaddDriver(struct driverBlock *newDriver);
-int	MLinitDriver(uint driverID);
-int	MLdeinitDriver(uint driverID);
-int	MLdriverParam(uint driverID, uint message, uint param1, void *param2);
-int	MLloadBank(uint driverID, int fd, uint bankNumber);
-int	MLdetectHardware(uint driverID, short port, short irq, short dma);
-int	MLinitHardware(uint driverID, short port, short irq, short dma);
-int	MLdeinitHardware(uint driverID);
-
-int	MLallocHandle(uint driverID);
-int	MLfreeHandle(uint musHandle);
-int	MLloadMUS(uint musHandle, int fd, uint memoryFlags);
-int	MLfreeMUS(uint musHandle);
-int	MLplay(uint musHandle);
-int	MLstop(uint musHandle);
-int	MLsetVolume(uint musHandle, uint volume);
-int	MLgetVolume(uint musHandle);
-int	MLpause(uint musHandle);
-int	MLunpause(uint musHandle);
-int	MLgetState(uint musHandle);
-struct musicBlock *MLgetBlock(uint musHandle);
-int	MLsetLoopCount(uint musHandle, int count);
-
-
-/* From MLMISC.C */
-#ifndef __WINDOWS__
-
-/*int	MLdetectBlaster(uint *port, ushort *irq, ushort *dma, ushort *type);*/
-uint	MLparseBlaster(const char *format, ...);
-
-#endif /* __WINDOWS__ */
-
-
-/* From MLDUMMY.C */
-#define DRV_DUMMY 0x0000
-
-extern struct driverBlock DUMMYdriver;
-
-void	DUMMYplayNote(uint channel, uchar note, int volume);
-void	DUMMYreleaseNote(uint channel, uchar note);
-void	DUMMYpitchWheel(uint channel, int pitch);
-void	DUMMYchangeControl(uint channel, uchar controller, int value);
-void	DUMMYplayMusic();
-void	DUMMYstopMusic();
-void	DUMMYchangeVolume(uint volume);
-void	DUMMYpauseMusic();
-void	DUMMYunpauseMusic();
-int	DUMMYsendMIDI(uint command, uint par1, uint par2);
-
-int	DUMMYinitDriver(void);
-int	DUMMYdeinitDriver(void);
-int	DUMMYdriverParam(uint message, uint param1, void *param2);
-int	DUMMYloadBank(int fd, uint bankNumber);
-
-int	DUMMYdetectHardware(uint port, uchar irq, uchar dma);
-int	DUMMYinitHardware(uint port, uchar irq, uchar dma);
-int	DUMMYdeinitHardware(void);
-
-
-#ifndef __WINDOWS__
-
+    
 /* From MLOPL.C */
-#define DRV_OPL2        0x0001
-#define DRV_OPL3	0x0002
+#define DRV_OPL2    0x01
+#define DRV_OPL3	0x02
 
 extern struct driverBlock OPL2driver;
 extern struct driverBlock OPL3driver;
 
-void	OPLplayNote(uint channel, uchar note, int volume);
-void	OPLreleaseNote(uint channel, uchar note);
-void	OPLpitchWheel(uint channel, int pitch);
-void	OPLchangeControl(uint channel, uchar controller, int value);
+void	OPLplayNote(uint8_t channel, uint8_t note, int8_t volume);
+void	OPLreleaseNote(uint8_t channel, uint8_t note);
+void    OPLpitchWheel(uint8_t channel, int8_t pitch);
+void	OPLchangeControl(uint8_t channel, uint8_t controller, uint8_t value);
 void	OPLplayMusic();
 void	OPLstopMusic();
-void	OPLchangeVolume(uint volume);
+void	OPLchangeVolume(int8_t volume);
 void	OPLpauseMusic();
 void	OPLunpauseMusic();
-int	OPLsendMIDI(uint command, uint par1, uint par2);
 
-int	OPLinitDriver(void);
-int	OPLdeinitDriver(void);
-int	OPLdriverParam(uint message, uint param1, void *param2);
-int	OPLloadBank(int fd, uint bankNumber);
+int8_t	OPLinitDriver(void);
+int8_t OPLdeinitDriver(void);
+int8_t	OPLdriverParam(uint16_t message, uint16_t param1, void *param2);
+int8_t OPLloadBank(int16_t fd, uint8_t bankNumber);
 
-int	OPL2detectHardware(uint port, uchar irq, uchar dma);
-int	OPL2initHardware(uint port, uchar irq, uchar dma);
-int	OPL2deinitHardware(void);
+int8_t	OPL2detectHardware(uint16_t port, uint8_t irq, uint8_t dma);
+int8_t	OPL2initHardware(uint16_t port, uint8_t irq, uint8_t dma);
+int8_t	OPL2deinitHardware(void);
 
-int	OPL3detectHardware(uint port, uchar irq, uchar dma);
-int	OPL3initHardware(uint port, uchar irq, uchar dma);
-int	OPL3deinitHardware(void);
+int8_t	OPL3detectHardware(uint16_t port, uint8_t irq, uint8_t dma);
+int8_t	OPL3initHardware(uint16_t port, uint8_t irq, uint8_t dma);
+int8_t	OPL3deinitHardware(void);
+
+int8_t OPLsendMIDI(uint8_t command, uint8_t par1, uint8_t par2);
 
 
 /* From MLOPL_IO.C */
@@ -317,27 +222,25 @@ int	OPL3deinitHardware(void);
 #define OPL3CHANNELS	18
 #define MAXCHANNELS	18
 
-extern uint OPLport;
-extern uint OPLchannels;
-extern uint OPL3mode;
+extern uint16_t OPLport;
+extern uint8_t OPLchannels;
+extern uint8_t OPL3mode;
 
-uint	OPLwriteReg(uint reg, uchar data);
-void	OPLwriteChannel(uint regbase, uint channel, uchar data1, uchar data2);
-void	OPLwriteValue(uint regbase, uint channel, uchar value);
-void	OPLwriteFreq(uint channel, uint freq, uint octave, uint keyon);
-uint	OPLconvertVolume(uint data, uint volume);
-uint	OPLpanVolume(uint volume, int pan);
-void	OPLwriteVolume(uint channel, struct OPL2instrument *instr, uint volume);
-void	OPLwritePan(uint channel, struct OPL2instrument *instr, int pan);
-void	OPLwriteInstrument(uint channel, struct OPL2instrument *instr);
+uint8_t OPLwriteReg(uint16_t reg, uint8_t data);
+void	OPLwriteChannel(uint8_t regbase, uint8_t channel, uint8_t data1, uint8_t data2);
+void	OPLwriteValue(uint8_t regbase, uint8_t channel, uint8_t value);
+void	OPLwriteFreq(uint8_t channel, uint16_t freq, uint8_t octave, uint8_t keyon);
+int8_t	OPLconvertVolume(uint8_t data, int8_t volume);
+int8_t	OPLpanVolume(int8_t volume, int8_t pan);
+void	OPLwriteVolume(uint8_t channel, struct OPL2instrument *instr, int8_t volume);
+void	OPLwritePan(uint8_t channel, struct OPL2instrument *instr, int8_t pan);
+void	OPLwriteInstrument(uint8_t channel, struct OPL2instrument *instr);
 void	OPLshutup(void);
-void	OPLinit(uint port, uint OPL3);
+void	OPLinit(uint16_t port, uint8_t OPL3);
 void	OPLdeinit(void);
-int	OPL2detect(uint port);
-int	OPL3detect(uint port);
-
-#endif /* __WINDOWS__ */
-
+int16_t	OPL2detect(uint16_t port);
+int16_t	OPL3detect(uint16_t port);
+ 
 
 /* From MLMIDI.C */
 
@@ -381,63 +284,29 @@ enum MUSctrl {
 };
 
 struct MIDIdata {
-	uchar	controllers[_ctrlCount_][CHANNELS]; // MUS controllers
-	uchar	channelLastVolume[CHANNELS];	// last volume
-	schar	pitchWheel[CHANNELS];		// pitch wheel value
-	schar	realChannels[CHANNELS];		// real MIDI output channels
-	uchar	percussions[128/8];		// bit-map of used percussions
+	uint8_t	controllers[_ctrlCount_][CHANNELS]; // MUS controllers
+	uint8_t	channelLastVolume[CHANNELS];	// last volume
+	int8_t	pitchWheel[CHANNELS];		// pitch wheel value
+	int8_t	realChannels[CHANNELS];		// real MIDI output channels
+	uint8_t	percussions[128/8];		// bit-map of used percussions
 };
 
-void	MIDIplayNote(uint channel, uchar note, int volume);
-void	MIDIreleaseNote(uint channel, uchar note);
-void	MIDIpitchWheel(uint channel, int pitch);
-void	MIDIchangeControl(uint channel, uchar controller, int value);
+/*
+
+void	MIDIplayNote(uint16_t channel, uint8_t note, int8_t volume);
+void	MIDIreleaseNote(uint16_t channel, uint8_t note);
+void	MIDIpitchWheel(uint16_t channel, int pitch);
+void	MIDIchangeControl(uint16_t channel, uint8_t controller, uint8_t value);
 void	MIDIplayMusic();
 void	MIDIstopMusic();
-void	MIDIchangeVolume(uint volume);
+void	MIDIchangeVolume(int8_t volume);
 void	MIDIpauseMusic();
 void	MIDIunpauseMusic();
 int	MIDIinitDriver(void);
 int	MIDIdeinitDriver(void);
 
 
-#ifndef __WINDOWS__
-
-/* From MLAWE32.C */
-#define DRV_AWE32 	0x0003
-
-#define AWE32PORT	0x620
-
-extern struct driverBlock AWE32driver;
-
-int	AWE32sendMIDI(uint command, uint par1, uint par2);
-int	AWE32driverParam(uint message, uint param1, void *param2);
-int	AWE32loadBank(int fd, uint bankNumber);
-
-int	AWE32detectHardware(uint port, uchar irq, uchar dma);
-int	AWE32initHardware(uint port, uchar irq, uchar dma);
-int	AWE32deinitHardware(void);
-
-
-/* From MLMPU401.C */
-#define DRV_MPU401	0x0004
-
-#define MPU401PORT	0x330
-
-extern struct driverBlock MPU401driver;
-
-int	MPU401sendMIDI(uint command, uint par1, uint par2);
-int	MPU401driverParam(uint message, uint param1, void *param2);
-int	MPU401loadBank(int fd, uint bankNumber);
-
-int	MPU401detectHardware(uint port, uchar irq, uchar dma);
-int	MPU401initHardware(uint port, uchar irq, uchar dma);
-int	MPU401deinitHardware(void);
-
-
-/* From MLSBMIDI.C */
 #define DRV_SBMIDI	0x0005
-
 #define SBMIDIPORT	0x220
 
 extern struct driverBlock SBMIDIdriver;
@@ -446,65 +315,18 @@ int	SBMIDIsendMIDI(uint command, uint par1, uint par2);
 int	SBMIDIdriverParam(uint message, uint param1, void *param2);
 int	SBMIDIloadBank(int fd, uint bankNumber);
 
-int	SBMIDIdetectHardware(uint port, uchar irq, uchar dma);
-int	SBMIDIinitHardware(uint port, uchar irq, uchar dma);
+int	SBMIDIdetectHardware(uint port, uint8_t irq, uint8_t dma);
+int	SBMIDIinitHardware(uint port, uint8_t irq, uint8_t dma);
 int	SBMIDIdeinitHardware(void);
-
-#endif /* __WINDOWS__ */
-
-
-#ifdef __WINDOWS__
-
-/* From MLWINMM.C */
-#define DRV_WINDOWS	0x0100
-
-extern struct driverBlock WINdriver;
-
-int	WINsendMIDI(uint command, uint par1, uint par2);
-int	WINdriverParam(uint message, uint param1, void *param2);
-int	WINloadBank(int fd, uint bankNumber);
-
-/*
- * `port' value selects Windows MMSYSTEM driver number in the range
- *  0..midiOutGetNumDevs()-1 or MIDI_MAPPER. `irq' and `dma' are ignored.
- */
-int	WINdetectHardware(uint port, uchar irq, uchar dma);
-int	WINinitHardware(uint port, uchar irq, uchar dma);
-int	WINdeinitHardware(void);
-
-#endif /* __WINDOWS__ */
+*/
 
 
-/* From MLOS2.C */
-#define DRV_OS2		0x0200
+ 
 
-extern struct driverBlock OS2driver;
+void	SBsetMixer(uint16_t SBport, uint8_t index, uint8_t data);
+int16_t	SBgetMixer(uint16_t SBport, uint8_t index);
+int16_t	SBdetectMixer(uint16_t port);
 
-int	OS2sendMIDI(uint command, uint par1, uint par2);
-int	OS2driverParam(uint message, uint param1, void *param2);
-int	OS2loadBank(int fd, uint bankNumber);
-
-/*
- * `port' value selects OS/2 driver number; `irq' and `dma' may be ignored.
- */
-int	OS2detectHardware(uint port, uchar irq, uchar dma);
-int	OS2initHardware(uint port, uchar irq, uchar dma);
-int	OS2deinitHardware(void);
-
-
-/* From MLSBMIX.C */
-#ifndef __WINDOWS__
-
-void	SBsetMixer(uint SBport, uchar index, uchar data);
-int	SBgetMixer(uint SBport, uchar index);
-int	SBdetectMixer(uint port);
-
-#endif /* __WINDOWS__ */
-
-
-#ifdef __cplusplus
-  }
-#endif
 
 
 #endif // __MUSLIB_H_
