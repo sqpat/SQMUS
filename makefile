@@ -29,7 +29,7 @@ CCOPTS = -zp1 -oaxet -oi -zq -j -mm -s -zdp -0
 #CCOPTS = /d2 /omaxet /zp1 /ei /j /zq /mt /zt100
 
 GLOBOBJS = test.obj &
-sqmus.obj &
+sqmus2.obj &
 dmx.obj
 
 

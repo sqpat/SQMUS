@@ -64,6 +64,7 @@ typedef struct {
    uint8_t          KeyOffset;
    uint8_t          KeyDetune;
    uint8_t          Volume;
+   uint8_t          RealVolume;
    uint8_t          LastVolume;
    //uint8_t         EffectiveVolume;
    uint8_t          Pan;
@@ -86,11 +87,43 @@ typedef struct {
 } AdLibTimbre;
 
 
+#define MAX_INSTRUMENTS 175
+
+typedef struct {
+/*00*/	uint8_t  trem_vibr_1;	/* OP 1: tremolo/vibrato/sustain/KSR/multi */
+/*01*/	uint8_t	att_dec_1;	/* OP 1: attack rate/decay rate */
+/*02*/	uint8_t	sust_rel_1;	/* OP 1: sustain level/release rate */
+/*03*/	uint8_t	wave_1;		/* OP 1: waveform select */
+/*04*/	uint8_t	scale_1;	/* OP 1: key scale level */
+/*05*/	uint8_t	level_1;	/* OP 1: output level */
+/*06*/	uint8_t	feedback;	/* feedback/AM-FM (both operators) */
+/*07*/	uint8_t  trem_vibr_2;	/* OP 2: tremolo/vibrato/sustain/KSR/multi */
+/*08*/	uint8_t	att_dec_2;	/* OP 2: attack rate/decay rate */
+/*09*/	uint8_t	sust_rel_2;	/* OP 2: sustain level/release rate */
+/*0A*/	uint8_t	wave_2;		/* OP 2: waveform select */
+/*0B*/	uint8_t	scale_2;	/* OP 2: key scale level */
+/*0C*/	uint8_t	level_2;	/* OP 2: output level */
+/*0D*/	uint8_t	unused;
+/*0E*/	int16_t	basenote;	/* base note offset */
+} OPL2Instrument;
+
+
+typedef struct {
+   uint16_t flags;
+   uint8_t   finetune;
+   uint8_t   note;
+   OPL2Instrument instr[2];
+
+} OPL2InstrumentEntry;
+
+//extern OPL2InstrumentEntry AdLibInstrumentList[MAX_INSTRUMENTS];
+
+
+
 #define NOTE_ON         0x2000  /* Used to turn note on or toggle note */
 #define NOTE_OFF        0x0000
 #define PERCUSSION_CHANNEL 15
 
-extern int8_t channelonoff[16];
 
 void AL_Reset();
 int16_t AL_Init();

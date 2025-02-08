@@ -7,12 +7,13 @@
 
 #include <i86.h>
 #include "test.h"
-#include "sqmus.h"
+#include "sqmus2.h"
 #include <sys/types.h>
 #include <string.h>
 #include "DMX.H"
 #include <signal.h>
 
+#include "sqmus.h"
 
 
 
@@ -151,6 +152,7 @@ volatile int16_t finishplaying = 0;
 #define MUS_EVENT_RESET_CONTROLLERS	 	14
 #define MUS_EVENT_UNIMPLEMENTED			15
 
+/*
 int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, uint8_t data){
 
 	// todo combine bytes and switch case a word
@@ -242,10 +244,13 @@ int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, uint8_t 
 
 	return 1;
 }
+*/
+
+volatile ulong	MLtime = 0;
+
 
 
 void MUS_ServiceRoutine(){
-
 	if (finishplaying){
 		return;
 	}
@@ -269,15 +274,15 @@ void MUS_ServiceRoutine(){
 		printf_implemented("%04x: %02x L: %hhi C: %hhi, EV: %hhi:\t", currentsong_playing_offset, eventbyte, (lastflag != 0), channel, event);
 
 
-		// todo is this the right way...?
-		if (channel > currentsong_primary_channels && channel < 10 && channel != PERCUSSION_CHANNEL){
-			printf("primary changed channel to percussion %i", channel);
-			channel = PERCUSSION_CHANNEL;
-		} else if ((channel - 10) > currentsong_secondary_channels && channel != PERCUSSION_CHANNEL){
-			//todo get rid of secondaries?
-			printf("secondary changed channel to percussion %i", channel);
-			channel = PERCUSSION_CHANNEL;
-		}
+		// // todo is this the right way...?
+		// if (channel > currentsong_primary_channels && channel < 10 && channel != PERCUSSION_CHANNEL){
+		// 	printf("primary changed channel to percussion %i", channel);
+		// 	channel = PERCUSSION_CHANNEL;
+		// } else if ((channel - 10) > currentsong_secondary_channels && channel != PERCUSSION_CHANNEL){
+		// 	//todo get rid of secondaries?
+		// 	printf("secondary changed channel to percussion %i", channel);
+		// 	channel = PERCUSSION_CHANNEL;
+		// }
 
 		switch (event){
 			case 0:
@@ -287,7 +292,9 @@ void MUS_ServiceRoutine(){
 					byte key		  = value & 0x7F;
 
 					printf_implemented("release note 0x%hhx\n", key);
-					AL_NoteOff(channel, key);
+					//AL_NoteOff(channel, key);
+
+					OPLreleaseNote(channel, value);
 
 				}
 				increment++;
@@ -295,16 +302,18 @@ void MUS_ServiceRoutine(){
 			case 1:
 				// Play Note
 				{
-					byte value 			  = currentlocation[1];
+					uint8_t value 			  = currentlocation[1];
 					byte volume = -1;  		// -1 means repeat..
-					byte key		  = value & 0x7F;
+					uint8_t key		  = value & 0x7F;
 					if (value & 0x80){
 						volume = currentlocation[2] & 0x7F;
 						increment++;
 					}
 
 					printf_implemented("play note 0x%hhx\n", key);
-					AL_NoteOn(channel, key, volume);
+					//AL_NoteOn(channel, key, volume);
+
+					OPLplayNote(channel, key, volume);
 
 					increment++;
 
@@ -319,17 +328,20 @@ void MUS_ServiceRoutine(){
 					
 					printf("bend channel by 0x%hhx\n", value);
 					increment++;
-					AL_SetPitchBend (channel, value); // todo? 2nd value
+					//AL_SetPitchBend (channel, value); // todo? 2nd value
+					OPLpitchWheel(channel, value - 0x80);
+
 				}
 				break;
 			case 3:
 				// System Event
 				{
 					byte controllernumber = currentlocation[1] & 0x7F;
-					int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, 0);
-					if (!result){
-						printf("A BAD SYSTEM EVENT?? 0x%hhx %0x\n", controllernumber, 0);
-					}
+					//int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, 0);
+					//if (!result){
+					//	printf("A BAD SYSTEM EVENT?? 0x%hhx %0x\n", controllernumber, 0);
+					//}
+					OPLchangeControl(channel, controllernumber, 0);
 									
 					printf_implemented("\n");
 					increment++;
@@ -340,12 +352,13 @@ void MUS_ServiceRoutine(){
 			case 4:
 				// Controller
 				{
-					byte controllernumber = currentlocation[1] & 0x7F; // values above 127 used for instrument change & 0x7F;
-					byte value 			  = currentlocation[2] & 0x7F; // values above 127 used for instrument change & 0x7F; ?
-					int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, value);
-					if (!result){
-						printf("B BAD SYSTEM EVENT?? %hhx %hhx %hhx\n", eventbyte, value, controllernumber);
-					}
+					uint8_t controllernumber = currentlocation[1]; // values above 127 used for instrument change & 0x7F;
+					uint8_t value 			  = currentlocation[2]; // values above 127 used for instrument change & 0x7F; ?
+					//int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, value);
+					//if (!result){
+					//	printf("B BAD SYSTEM EVENT?? %hhx %hhx %hhx\n", eventbyte, value, controllernumber);
+					//}
+					OPLchangeControl(channel, controllernumber, value);
 					
 					printf_implemented("\n");
 
@@ -403,7 +416,12 @@ void MUS_ServiceRoutine(){
 	printf_implemented("INT DONE (#%i) \n", currentsong_int_count);
 	called = 1;
 	currentsong_int_count++;
+	MLtime++;
+
 }
+
+struct OP2instrEntry AdLibInstrumentList[MAX_INSTRUMENTS];
+
 
 
 void sigint_catcher(int sig) {
@@ -428,18 +446,36 @@ int16_t main(void) {
 
 		printf("Loaded %s into memory location 0x%lx successfully...\n", filename, MUS_LOCATION);
 
+		fp = fopen("genmidi.lmp", "rb");
+		if (fp){
+			far_fread(AdLibInstrumentList, sizeof(struct OP2instrEntry) * MAX_INSTRUMENTS, 1, fp);
+			printf("Read instrument data!\n");
+			fclose(fp);
+		} else {
+			printf("Error reading genmidi.lmp!\n");
+			return 0;
+			
+		}
+
+
 		printf("Enabling AdLib...\n");
-		if (!AL_Detect()){
-			printf("Error detecting adlib!\n");
-			return 0;
-		}
-		if (!AL_Init()){
-			printf("Error enabling adlib!\n");
-			return 0;
-		}
+		// if (!AL_Detect()){
+		// 	printf("Error detecting adlib!\n");
+		// 	return 0;
+		// }
+		// if (!AL_Init()){
+		// 	printf("Error enabling adlib!\n");
+		// 	return 0;
+		// }
+
+		OPL2initHardware(0x388, 0, 0);
+		//OPLinitDriver();
 
 		printf("Scheduling interrupt\n");
 		signal(SIGINT, sigint_catcher);
+
+		OPLstopMusic();
+		OPLplayMusic();
 
 		TS_Startup();
 		TS_ScheduleTask(MUS_ServiceRoutine, MUS_INTERRUPT_RATE);
@@ -452,6 +488,7 @@ int16_t main(void) {
 		while (!kbhit()){
 			if (called){
 
+/*
 				cprintf("\r%i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i", 
 					channelonoff[0],
 					channelonoff[1],
@@ -471,7 +508,7 @@ int16_t main(void) {
 					channelonoff[15]
 					
 					);
-
+*/
 				/*
 				uint16_t val1 = currentsong_int_count / (60 * MUS_INTERRUPT_RATE);
 				uint16_t val2 = (currentsong_int_count / (MUS_INTERRUPT_RATE)) % 60;
@@ -501,7 +538,9 @@ int16_t main(void) {
 		printf("Shut down interrupt, flushing adlib...\n");
 
 
-		AL_Reset();
+		OPLstopMusic();
+		//AL_Reset();
+		OPL2deinitHardware();
 
 		printf("Adlib state cleared, exiting program...\n");
 
