@@ -42,12 +42,12 @@ struct OPL2instrument {
 };
 
 /* OP2 instrument file entry */
-struct OP2instrEntry {
+typedef struct  {
 /*00*/	uint16_t	flags;			// see FL_xxx below
 /*02*/	uint8_t	finetune;		// finetune value for 2-voice sounds
 /*03*/	uint8_t	note;			// note # for fixed instruments
 /*04*/	struct OPL2instrument instr[2];	// instruments
-};
+} OP2instrEntry;
 
 #define FL_FIXED_PITCH	0x0001		// note has fixed pitch (see below)
 #define FL_UNKNOWN	0x0002		// ??? (used in instrument #65 only)

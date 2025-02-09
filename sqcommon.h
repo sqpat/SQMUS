@@ -112,6 +112,7 @@ struct driverBlock {
 #define CHANNELS	16		// total channels 0..CHANNELS-1
 #define PERCUSSION	15		// percussion channel
 #define MAX_INSTRUMENTS 175
+#define MAX_INSTRUMENTS_PER_TRACK 0x1C // largest in doom1 or doom2
 #define DEFAULT_PITCH_BEND 0x80
 extern uint8_t	playingstate;
 #define DEFAULT_VOLUME  256

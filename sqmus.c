@@ -91,10 +91,13 @@ int16_t     		playingvolume = DEFAULT_VOLUME;
 volatile uint32_t 	playingtime = 0;
 volatile int16_t 	called = 0;
 volatile int16_t 	finishplaying = 0;
+OP2instrEntry 		AdLibInstrumentList[MAX_INSTRUMENTS_PER_TRACK];
+uint8_t 			instrumentlookup[MAX_INSTRUMENTS];
 
 
 int16_t MUS_Parseheader(byte __far *data){
     int16_t __far *  worddata = (int16_t __far *)data;
+	int8_t i;
     if (worddata[0] == 0x554D && worddata[1] == 0x1A53 ){     // MUS file header
         currentsong_length              = worddata[2];  // how do larger that 64k files work?
         currentsong_start_offset        = worddata[3];  // varies
@@ -109,11 +112,26 @@ int16_t MUS_Parseheader(byte __far *data){
 		printf("secondary channels: 0x%x\n",currentsong_secondary_channels);
 		printf("num instruments:    0x%x\n",currentsong_num_instruments);	// todo dynamically load the data from the main bank at startup to take less memory?
 
+		if (currentsong_num_instruments > MAX_INSTRUMENTS_PER_TRACK){
+			printf("Too many instruments! %i vs max of %i", currentsong_num_instruments, MAX_INSTRUMENTS_PER_TRACK);
+		}
 
 		currentsong_playing_offset = currentsong_start_offset;
 		currentsong_play_timer = 0;
 		currentsong_int_count = 0;
 		currentsong_ticks_to_process = 0;
+		
+
+		// parse instruements
+		memset(instrumentlookup, 0xFF, MAX_INSTRUMENTS);
+		for (i = 0; i < currentsong_num_instruments; i++){
+			uint16_t instrument = worddata[8+i];
+			if (instrument > 127){
+				instrument -= 7;
+			}
+			instrumentlookup[instrument] = i;	// this instrument is index i in AdLibInstrumentList
+		}
+
 		return 1; 
     } else {
 		printf("Bad header %x %x", worddata[0], worddata[1]);
@@ -301,7 +319,6 @@ void MUS_ServiceRoutine(){
 	playingtime++;
 }
 
-struct OP2instrEntry AdLibInstrumentList[MAX_INSTRUMENTS];
 
 
 int8_t attemptDetectingAnyHardware(){
@@ -371,10 +388,21 @@ int16_t main(void) {
 		result = MUS_Parseheader(muslocation);
 		printf("Loaded %s into memory location 0x%lx successfully...\n", filename, muslocation);
 
+		// todo only if OPL?
+
 		fp = fopen("genmidi.lmp", "rb");
 		if (fp){
 			// todo read based on numinstruments
-			far_fread(AdLibInstrumentList, sizeof(struct OP2instrEntry) * MAX_INSTRUMENTS, 1, fp);
+			uint8_t i;
+			for (i = 0; i < MAX_INSTRUMENTS; i++){
+				uint8_t instrumentindex = instrumentlookup[i];
+				if (instrumentindex != 0xFF){
+					uint16_t offset = sizeof(OP2instrEntry) * i;
+					//printf("Instr index/nmbr/offset %i %i %x\n", instrumentindex, i, offset);
+					fseek(fp, offset, SEEK_SET);
+					far_fread(&AdLibInstrumentList[instrumentindex], sizeof(OP2instrEntry), 1, fp);
+				}
+			}
 			printf("Read instrument data!\n");
 			fclose(fp);
 		} else {
