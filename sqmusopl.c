@@ -138,24 +138,39 @@ int8_t noteVolumetable[128] = {
 	120, 121, 121, 122, 122, 123, 123, 123,
 	124, 124, 125, 125, 126, 126, 127, 127};
 
+
+// get quotient and remainder/modulo
+inline int16_t_union FastDiv16u_8u(uint16_t ax, uint8_t dl);
+#pragma aux FastDiv16u_8u =   \
+"div dl"  \
+    parm [ax] [dl]       \
+    modify [ah al]   \
+    value [ax];
+
+inline uint32_t FastMul16u16u(uint16_t a, uint16_t b);
+#pragma aux FastMul16u16u =   \
+"MUL DX"  \
+    parm [ax] [dx]       \
+    modify [ax dx]   \
+    value [dx ax];
+
+inline uint16_t FastMul8u8u(uint8_t a, uint8_t b);
+#pragma aux FastMul8u8u =   \
+"MUL ah"  \
+    parm [al] [ah]       \
+    modify [ah al]   \
+    value [ax];
+
+
+
 /*
  * Adjust volume value (register 0x40)
  */
 int8_t OPLconvertVolume(uint8_t data, int8_t noteVolume){
-
-
-#if 0
-    uint n;
-
-    if (volume > 127)
-	volume = 127;
-    n = 0x3F - (data & 0x3F);
-    n = (n * (uint)volumetable[volume]) >> 7;
-    return (0x3F - n) | (data & 0xC0);
-#else
-    return 0x3F - (((int16_t)(0x3F - data) *
-		(int16_t)noteVolumetable[noteVolume & 0x7F]) >> 7); // todo is the and necessary here or really anywhere
-#endif
+	int16_t_union volumevalue;
+	volumevalue.hu = FastMul8u8u(noteVolumetable[noteVolume & 0x7F], (0x3F - data));
+	volumevalue.hu <<= 1;
+	return 0x3F - volumevalue.bu.bytehigh;
 }
 
 int8_t OPLpanVolume(int8_t noteVolume, int8_t pan){
@@ -184,8 +199,7 @@ void OPLwritePan(uint8_t channel, struct OPL2instrument *instr, int8_t pan){
 		bits = 0x10;		// left
 	} else if (pan > 36){
 		bits = 0x20;	// right
-	} 
-    else {
+	} else {
 		bits = 0x30;			// both
 	}
 
@@ -436,13 +450,6 @@ uint16_t pitchwheeltable[] = {				    /* pitch wheel */
 	 36516U,36549U,36582U,36615U,36648U,36681U,36715U,36748U}; /*  120 */
 
 
-// get quotient and remainder/modulo
-inline int16_t_union FastDiv12(int16_t ax, int8_t dx);
-#pragma aux FastDiv12 =   \
-"div dl"  \
-    parm [ax] [dl]       \
-    modify [ah al]   \
-    value [ax];
 
 
 void writeFrequency(uint8_t slot, uint8_t note, uint8_t pitchwheel, uint8_t keyOn){
@@ -461,7 +468,7 @@ void writeFrequency(uint8_t slot, uint8_t note, uint8_t pitchwheel, uint8_t keyO
 		freq = freqtable[note];
 		octave = 0;
 	} else {
-		int16_t_union div_result = FastDiv12(note-7, 12);
+		int16_t_union div_result = FastDiv16u_8u(note-7, 12);
 		freq = freqtable2[div_result.b.bytehigh];
 		octave = div_result.b.bytelow;
 	}
@@ -489,9 +496,23 @@ void writeModulation(uint8_t slot, struct OPL2instrument *instr, uint8_t state){
 	instr->trem_vibr_2 | state);
 }
 
-int8_t calcVolumeOPL(uint16_t channelVolume, uint16_t systemVolume, int8_t noteVolume){
-    noteVolume = (((uint32_t)channelVolume * systemVolume * noteVolume) / (256*127)) & 0x7F;
-	return noteVolume;
+int8_t calcVolumeOPL(uint8_t channelVolume, uint16_t systemVolume, int8_t noteVolume){
+	fixed_t_union volume_product;
+	int16_t_union intermediate;
+    intermediate.hu = FastMul8u8u(channelVolume, noteVolume);
+	volume_product.wu = FastMul16u16u(intermediate.hu, systemVolume);
+	// divide by 256...
+	intermediate.bu.bytelow = volume_product.bu.fracbytehigh;
+	intermediate.bu.bytehigh = volume_product.bu.intbytelow;
+	// divide by 127
+	intermediate = FastDiv16u_8u(intermediate.hu, 127);
+	
+	if (intermediate.bu.bytelow > 0x7F){
+		return 0x7F;
+	} else {
+		return intermediate.bu.bytelow;
+	}
+	
 }
 
 uint8_t occupyChannel(uint8_t slot, uint8_t channel,
