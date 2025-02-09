@@ -1,5 +1,5 @@
-#include "test.h"
-#include "sqmus2.h"
+#include "sqcommon.h"
+#include "sqmusopl.h"
 #include <string.h>
 #include <conio.h>
 #include <stdlib.h>
@@ -12,7 +12,6 @@
 #include <io.h>
 #include <dos.h>
 
-#define MAX_INSTRUMENTS 175
 
 
 extern struct OP2instrEntry AdLibInstrumentList[MAX_INSTRUMENTS];
@@ -318,7 +317,6 @@ struct OPLdata OPL2driverdata;
 struct driverBlock OPL2driver = {
 	DRV_OPL2,			// driverID
 	sizeof(struct OPLdata),		// datasize
-	
 	OPLinitDriver,
 	OPLdeinitDriver,
 	OPLdriverParam,
@@ -336,24 +334,8 @@ struct driverBlock OPL2driver = {
 	OPLchangeVolume,
 	OPLpauseMusic,
 	OPLunpauseMusic,
-	OPLsendMIDI};
-
-
-//struct musicBlock *mainmusicblock[MAXMUSBLOCK] = {NULL};
-//struct driverBlock *MLdriverList = &DUMMYdriver;
-
-
-uint8_t	playingstate = ST_PLAYING;			
-#define DEFAULT_VOLUME  256
-uint16_t	playingloopcount;
-uint16_t	playingchannelMask = 0xFFFF;
-uint16_t	playingpercussMask = 1 << PERCUSSION;
-
-uint32_t	playingtime;
-uint32_t	playingticks;
-
-
-
+	OPLsendMIDI
+};
 
 
 struct driverBlock OPL3driver = {
@@ -375,10 +357,11 @@ struct driverBlock OPL3driver = {
 	OPLstopMusic,
 	OPLchangeVolume,
 	OPLpauseMusic,
-	OPLunpauseMusic};
+	OPLunpauseMusic,
+	OPLsendMIDI
+};
 
 
-struct driverBlock	*playingdriver = &OPL2driver;
 
 
 static uint8_t	OPLsinglevoice = 0;
@@ -390,8 +373,8 @@ static struct channelEntry {
 	uint8_t	note;			/* note number */
 	uint8_t	flags;			/* see CH_xxx below */
 	uint8_t	realnote;		/* adjusted note number */
-	int8_t	finetune;		/* frequency fine-tune */
 	int16_t	pitch;			/* pitch-wheel value */
+	int8_t	finetune;		/* frequency fine-tune */
 	int8_t	volume;			/* note volume */
 	int8_t	realvolume;		/* adjusted note volume */
 	struct OPL2instrument *instr;	/* current instrument */
@@ -437,6 +420,7 @@ static uint8_t octavetable[] = {					 /* note # */
 //#define HIGHEST_NOTE 102
 #define HIGHEST_NOTE 127
 
+//todo how to calculate...?
 static uint16_t pitchtable[] = {				    /* pitch wheel */
 	 29193U,29219U,29246U,29272U,29299U,29325U,29351U,29378U,  /* -128 */
 	 29405U,29431U,29458U,29484U,29511U,29538U,29564U,29591U,  /* -120 */
@@ -708,7 +692,7 @@ void OPLreleaseNote(uint8_t channel, uint8_t note){
 }
 
 // code 2: change pitch wheel (bender)
-void OPLpitchWheel(uint8_t channel, int8_t pitch){
+void OPLpitchWheel(uint8_t channel, uint8_t pitch){
     uint8_t i;
     uint8_t id = channel;
 
@@ -729,60 +713,56 @@ void OPLchangeControl(uint8_t channel, uint8_t controller, uint8_t value){
     uint8_t id = channel;
 
     switch (controller) {
-		case ctrlPatch:			/* change instrument */
+		case 0:			/* change instrument */
 			OPL2driverdata.channelInstr[channel] = value;
 			break;
-		case ctrlModulation:
+		case 2:
 			OPL2driverdata.channelModulation[channel] = value;
-			for(i = 0; i < OPLchannels; i++)
-			{
-			struct channelEntry *ch = &channels[i];
-			if (ch->channel == id)
-			{
-				uint8_t flags = ch->flags;
-				ch->time = MLtime;
-				if (value >= MOD_MIN)
-				{
-				ch->flags |= CH_VIBRATO;
-				if (ch->flags != flags)
-					writeModulation(i, ch->instr, 1);
-				} else {
-				ch->flags &= ~CH_VIBRATO;
-				if (ch->flags != flags)
-					writeModulation(i, ch->instr, 0);
+			for(i = 0; i < OPLchannels; i++) {
+				struct channelEntry *ch = &channels[i];
+				if (ch->channel == id) {
+					uint8_t flags = ch->flags;
+					ch->time = MLtime;
+					if (value >= MOD_MIN) {
+						ch->flags |= CH_VIBRATO;
+						if (ch->flags != flags){
+							writeModulation(i, ch->instr, 1);
+						}
+					} else {
+						ch->flags &= ~CH_VIBRATO;
+						if (ch->flags != flags){
+							writeModulation(i, ch->instr, 0);
+						}
+					}
 				}
 			}
-			}
 			break;
-		case ctrlVolume:		/* change volume */
+		case 3:		/* change volume */
 			OPL2driverdata.channelVolume[channel] = value;
-			for(i = 0; i < OPLchannels; i++)
-			{
-			struct channelEntry *ch = &channels[i];
-			if (ch->channel == id)
-			{
-				ch->time = MLtime;
-				ch->realvolume = calcVolume(value, DEFAULT_VOLUME, ch->volume);
-				OPLwriteVolume(i, ch->instr, ch->realvolume);
-			}
+			for(i = 0; i < OPLchannels; i++) {
+				struct channelEntry *ch = &channels[i];
+				if (ch->channel == id) {
+					ch->time = MLtime;
+					ch->realvolume = calcVolume(value, DEFAULT_VOLUME, ch->volume);
+					OPLwriteVolume(i, ch->instr, ch->realvolume);
+				}
 			}
 			break;
-		case ctrlPan:			/* change pan (balance) */
+		case 4:			/* change pan (balance) */
 			OPL2driverdata.channelPan[channel] = value -= 64;
-			for(i = 0; i < OPLchannels; i++)
-			{
-			struct channelEntry *ch = &channels[i];
-			if (ch->channel == id)
-			{
-				ch->time = MLtime;
-				OPLwritePan(i, ch->instr, value);
-			}
+			for(i = 0; i < OPLchannels; i++) {
+				struct channelEntry *ch = &channels[i];
+				if (ch->channel == id) {
+					ch->time = MLtime;
+					OPLwritePan(i, ch->instr, value);
+				}
 			}
 			break;
-		case ctrlSustainPedal:		/* change sustain pedal (hold) */
+		case 8:		/* change sustain pedal (hold) */
 			OPL2driverdata.channelSustain[channel] = value;
-			if (value < 0x40)
-			releaseSustain(channel);
+			if (value < 0x40){
+				releaseSustain(channel);
+			}
 			break;
     }
 }
@@ -842,8 +822,9 @@ void OPLunpauseMusic(){
 		OPLwriteChannel(0x60, i, instr->att_dec_1,  instr->att_dec_2);
 		OPLwriteChannel(0x80, i, instr->sust_rel_1, instr->sust_rel_2);
 		OPLwriteVolume(i, instr, ch->realvolume);
-		if (OPL3mode)
-		OPLwritePan(i, instr, OPL2driverdata.channelPan[ch->channel & 0xF]);
+		if (OPL3mode){
+			OPLwritePan(i, instr, OPL2driverdata.channelPan[ch->channel & 0xF]);
+		}
     }
 }
 

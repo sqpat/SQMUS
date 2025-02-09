@@ -6,10 +6,11 @@ option stack=4096
 debug all
 libpath %WATCOM%\lib286
 libpath %WATCOM%\lib286\dos
-#format os2 le
 format dos
 name test
 
 file test.obj
-file sqmus2.obj
+file sqmusopl.obj
+file sqmusmpu.obj
+file sqmusmid.obj
 file dmx.obj

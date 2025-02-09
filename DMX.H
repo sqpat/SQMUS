@@ -15,7 +15,7 @@
 #ifndef _DMX_H_
 #define _DMX_H_
 
-#include "test.h"
+#include "sqcommon.h"
 
 /*
 void StartTimer(void(*function)(void));

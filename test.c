@@ -6,14 +6,15 @@
 #include <graph.h>
 
 #include <i86.h>
-#include "test.h"
-#include "sqmus2.h"
+#include "sqcommon.h"
+#include "sqmusopl.h"
+#include "sqmusmpu.h"
+#include "sqmusmid.h"
 #include <sys/types.h>
 #include <string.h>
 #include "DMX.H"
 #include <signal.h>
 
-#include "sqmus.h"
 
 
 
@@ -130,6 +131,19 @@ int16_t MUS_Parseheader(byte __far *data){
 
 
 }
+
+
+
+struct driverBlock	*playingdriver = &OPL2driver;
+
+
+uint8_t	playingstate = ST_PLAYING;			
+uint16_t	playingloopcount;
+uint16_t	playingchannelMask = 0xFFFF;
+uint16_t	playingpercussMask = 1 << PERCUSSION;
+uint32_t	playingtime;
+uint32_t	playingticks;
+
 
 #define MUS_INTERRUPT_RATE 140
 volatile int16_t called = 0;
@@ -292,9 +306,9 @@ void MUS_ServiceRoutine(){
 					byte key		  = value & 0x7F;
 
 					printf_implemented("release note 0x%hhx\n", key);
-					//AL_NoteOff(channel, key);
 
-					OPLreleaseNote(channel, value);
+					//OPLreleaseNote(channel, value);
+					playingdriver->releaseNote(channel, value);
 
 				}
 				increment++;
@@ -311,9 +325,9 @@ void MUS_ServiceRoutine(){
 					}
 
 					printf_implemented("play note 0x%hhx\n", key);
-					//AL_NoteOn(channel, key, volume);
 
-					OPLplayNote(channel, key, volume);
+					// OPLplayNote(channel, key, volume);
+					playingdriver->playNote(channel, key, volume);
 
 					increment++;
 
@@ -328,8 +342,9 @@ void MUS_ServiceRoutine(){
 					
 					printf("bend channel by 0x%hhx\n", value);
 					increment++;
-					//AL_SetPitchBend (channel, value); // todo? 2nd value
-					OPLpitchWheel(channel, value - 0x80);
+					//OPLpitchWheel(channel, value - 0x80);
+
+					playingdriver->pitchWheel(channel, value - 0x80);
 
 				}
 				break;
@@ -341,7 +356,8 @@ void MUS_ServiceRoutine(){
 					//if (!result){
 					//	printf("A BAD SYSTEM EVENT?? 0x%hhx %0x\n", controllernumber, 0);
 					//}
-					OPLchangeControl(channel, controllernumber, 0);
+					//OPLchangeControl(channel, controllernumber, 0);
+					playingdriver->changeControl(channel, controllernumber, 0);
 									
 					printf_implemented("\n");
 					increment++;
@@ -358,7 +374,8 @@ void MUS_ServiceRoutine(){
 					//if (!result){
 					//	printf("B BAD SYSTEM EVENT?? %hhx %hhx %hhx\n", eventbyte, value, controllernumber);
 					//}
-					OPLchangeControl(channel, controllernumber, value);
+					//OPLchangeControl(channel, controllernumber, value);
+					playingdriver->changeControl(channel, controllernumber, value);
 					
 					printf_implemented("\n");
 
@@ -458,7 +475,8 @@ int16_t main(void) {
 
 		printf("Enabling Sound...\n");
 	
-	
+		
+/*	
 		if (OPL3detectHardware(0x388, 0, 0)){
 			printf("OPL3 Detected...\n");
 			OPL3initHardware(0x388, 0, 0);
@@ -471,14 +489,33 @@ int16_t main(void) {
 			printf("ERROR! No OPL hardware Detected!\n");
 			return 0;
 		}
+		*/
+
+		if (MPU401detectHardware(MPU401PORT, 0, 0)){
+			printf("MPU-401 Detected...\n");
+			MIDIinitDriver();
+			printf("MPU-401 Enabled...\n");
+			playingdriver = &MPU401driver;
+		} else {
+			printf("ERROR! No MIDI hardware Detected!\n");
+			return 0;
+
+		}
+
+		printf("Driver song setup...\n");
+		playingdriver->stopMusic();
+		playingdriver->playMusic();
+
 
 		//OPLinitDriver();
 
 		printf("Scheduling interrupt\n");
 		signal(SIGINT, sigint_catcher);
 
-		OPLstopMusic();
-		OPLplayMusic();
+		//OPLstopMusic();
+		//OPLplayMusic();
+
+
 
 		TS_Startup();
 		TS_ScheduleTask(MUS_ServiceRoutine, MUS_INTERRUPT_RATE);
