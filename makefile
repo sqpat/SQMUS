@@ -28,7 +28,7 @@ CCOPTS = -zp1 -oaxet -oi -zq -j -ms -s -zdp -0
 
 #CCOPTS = /d2 /omaxet /zp1 /ei /j /zq /mt /zt100
 
-GLOBOBJS = test.obj &
+GLOBOBJS = sqmus.obj &
 sqmusopl.obj &
 sqmusmpu.obj &
 sqmusmid.obj &
@@ -36,10 +36,10 @@ sqmussbm.obj &
 dmx.obj
 
 
-#newtest.exe : test.obj
-test.exe : $(GLOBOBJS) 
- wlink @test.lnk
- wstrip test.exe
+#newtest.exe : sqmus.obj
+sqmus.exe : $(GLOBOBJS) 
+ wlink @sqmus.lnk
+ wstrip sqmus.exe
 
 .c.obj :
  wcc $(CCOPTS) $[*
@@ -47,4 +47,4 @@ test.exe : $(GLOBOBJS)
 
 clean : .SYMBOLIC
  del *.obj
- del test.exe
+ del sqmus.exe
