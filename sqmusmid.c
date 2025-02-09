@@ -41,8 +41,7 @@ uint16_t percussMask;
 
 #define MIDI_PERC	9	/* standard MIDI percussion channel */
 
-#define DEFAULT_VOLUME_MIDI 256
-
+\
 /* calculate MIDI channel volume */
 int8_t calcVolume(uint16_t MUSvolume, uint8_t noteVolume){
     noteVolume = ((uint32_t)MUSvolume * noteVolume) >> 8;
@@ -119,18 +118,25 @@ void updateControllers(uint8_t channel){
                 if (MIDIchannel == MIDI_PERC){
                     continue;
                 } else {
-                    value = calcVolume(DEFAULT_VOLUME, value);
+                    value = calcVolume(playingvolume, value);
                 }
             }
             SENDMIDI(MIDIchannel, MIDI_CONTROL, MUS2MIDIctrl[i], value);
         }
-        value = data->pitchWheel[channel] + 0x80;
-        SENDMIDI(MIDIchannel, MIDI_PITCH_WHEEL, (value & 1) << 6, (value >> 1) & 0x7F);
+        
+        {
+            uint8_t pitch = data->pitchWheel[channel];
+            uint8_t pitch_high = pitch >> 1 & 0x7F;
+            uint8_t pitch_low = (pitch & 1) ? 0x80 : 0; // todo 64?
+            SENDMIDI(MIDIchannel, MIDI_PITCH_WHEEL, pitch_low, pitch_high);
+
+            //SENDMIDI(MIDIchannel, MIDI_PITCH_WHEEL, (value & 1) << 6, (value >> 1) & 0x7F);
+        }
     }
 }
 
-/* send updated volume */
-void sendVolume(int16_t volume){
+/* send system volume */
+void sendSystemVolume(int16_t systemVolume){
     struct MIDIdata *data = &mididriverData;
     int8_t i;
 
@@ -139,7 +145,7 @@ void sendVolume(int16_t volume){
         if ( (MIDIchannel = data->realChannels[i]) >= 0){
             if (MIDIchannel != MIDI_PERC){
                 SENDMIDI(MIDIchannel, MIDI_CONTROL, MUS2MIDIctrl[ctrlVolume],
-                    calcVolume(volume, data->controllers[ctrlVolume][i]));
+                    calcVolume(systemVolume, data->controllers[ctrlVolume][i]));
             }
         }
     }
@@ -166,8 +172,8 @@ void MIDIplayNote(uint8_t channel, uint8_t note, int8_t volume){
     }
 
     if (MIDIchannel == MIDI_PERC) {
-        data->percussions[note >> 3] |= 1 << (note & 7);
-        volume = (calcVolume(DEFAULT_VOLUME_MIDI, data->controllers[ctrlVolume]
+        data->percussions[note >> 3] |= (1 << (note & 7));
+        volume = (calcVolume(playingvolume, data->controllers[ctrlVolume]
                         [channel]) * volume) / 127;
     }
 
@@ -198,9 +204,11 @@ void MIDIpitchWheel(uint8_t channel, uint8_t pitch){
     data->pitchWheel[channel] = pitch;
 
     if ( (MIDIchannel = data->realChannels[channel]) >= 0) {
+        uint8_t pitch_high = pitch >> 1 & 0x7F;
+        uint8_t pitch_low = (pitch & 1) ? 0x80 : 0; // todo 64?
         TOUCH(MIDIchannel);
-        pitch += 0x80;
-        SENDMIDI(MIDIchannel, MIDI_PITCH_WHEEL, (pitch & 1) << 6, (pitch >> 1) & 0x7F);
+
+        SENDMIDI(MIDIchannel, MIDI_PITCH_WHEEL, pitch_low, pitch_high);
     }
 }
 
@@ -227,7 +235,7 @@ void MIDIchangeControl(uint8_t channel, uint8_t controller, uint8_t value){
                 if (MIDIchannel == MIDI_PERC){
                     return;
                 }
-                value = calcVolume(DEFAULT_VOLUME_MIDI, value);
+                value = calcVolume(playingvolume, value);
                 break;
             case ctrlResetCtrls:	/* Reset All Controllers */
                 /* Perhaps, some controllers should be added or removed,
@@ -238,7 +246,7 @@ void MIDIchangeControl(uint8_t channel, uint8_t controller, uint8_t value){
                 data->controllers[ctrlExpression  ][channel] = 127;
                 data->controllers[ctrlSustainPedal][channel] = 0;
                 data->controllers[ctrlSoftPedal	  ][channel] = 0;
-                data->pitchWheel		   [channel] = 0;
+                data->pitchWheel		   [channel] = DEFAULT_PITCH_BEND;
                 break;
         }
         SENDMIDI(MIDIchannel, MIDI_CONTROL, MUS2MIDIctrl[controller], value);
@@ -261,7 +269,7 @@ void MIDIplayMusic(){
         data->controllers[ctrlSustainPedal][i] = 0;
         data->controllers[ctrlSoftPedal	  ][i] = 0;
         data->channelLastVolume            [i] = 0; /* last volume--anything */
-        data->pitchWheel		   [i] = 0;
+        data->pitchWheel		   [i] = DEFAULT_PITCH_BEND;
         data->realChannels		   [i] = -1; /* no assignment */
     }
     memset(data->percussions, 0, sizeof data->percussions);
@@ -293,18 +301,18 @@ void MIDIstopMusic(){
     }
 }
 
-void MIDIchangeVolume(int8_t volume){
+void MIDIchangeSystemVolume(int16_t systemVolume){
     if (playingstate == ST_PLAYING){
-	    sendVolume(volume);
+	    sendSystemVolume(systemVolume);
     }
 }
 
 void MIDIpauseMusic(){
-    sendVolume(0);
+    sendSystemVolume(0);
 }
 
 void MIDIunpauseMusic(){
-    sendVolume(DEFAULT_VOLUME);
+    sendSystemVolume(playingvolume);
 }
 
 

@@ -194,7 +194,7 @@ struct driverBlock MPU401driver = {
 	MIDIchangeControl,
 	MIDIplayMusic,
 	MIDIstopMusic,
-	MIDIchangeVolume,
+	MIDIchangeSystemVolume,
 	MIDIpauseMusic,
 	MIDIunpauseMusic,
 	MPU401sendMIDI

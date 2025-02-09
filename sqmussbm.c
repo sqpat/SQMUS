@@ -43,8 +43,9 @@ int SBMIDIsendBlock(uint8_t *block, uint16_t length){
     runningStatus = 0;			/* clear the running status byte */
 
     _disable();
-    while (length--)
-	SBMIDIsendByte(*block++);
+    while (length--){
+	    SBMIDIsendByte(*block++);
+    }
     _enable();
     return 0;
 }
@@ -74,9 +75,9 @@ int8_t SBMIDIsendMIDI(uint8_t command, uint8_t par1, uint8_t par2){
 
 int8_t SBMIDIdriverParam(uint16_t message, uint16_t param1, void *param2){
     switch (message) {
-	case DP_SYSEX:
-	    SBMIDIsendBlock((uint8_t *)param2, param1);
-	    break;
+        case DP_SYSEX:
+            SBMIDIsendBlock((uint8_t *)param2, param1);
+            break;
     }
     return 0;
 }
@@ -123,7 +124,7 @@ struct driverBlock SBMIDIdriver = {
 	MIDIchangeControl,
 	MIDIplayMusic,
 	MIDIstopMusic,
-	MIDIchangeVolume,
+	MIDIchangeSystemVolume,
 	MIDIpauseMusic,
 	MIDIunpauseMusic,
 	SBMIDIsendMIDI

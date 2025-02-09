@@ -95,7 +95,7 @@ void    OPLpitchWheel(uint8_t channel, uint8_t pitch);
 void	OPLchangeControl(uint8_t channel, uint8_t controller, uint8_t value);
 void	OPLplayMusic();
 void	OPLstopMusic();
-void	OPLchangeVolume(int8_t volume);
+void	OPLchangeSystemVolume(int16_t systemVolume);
 void	OPLpauseMusic();
 void	OPLunpauseMusic();
 

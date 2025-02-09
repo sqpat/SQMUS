@@ -36,9 +36,6 @@ void TS_ScheduleTask(void(*Function)(void ), uint16_t rate);
 void TS_Dispatch(void);
 void TS_SetTaskRate(task *Task, uint16_t rate);
 
-void MUS_PauseSong(int16_t handle);
-void MUS_ResumeSong(int16_t handle);
-void MUS_SetMasterVolume(int16_t volume);
 int16_t MUS_RegisterSong(void __far*data);
 int16_t MUS_UnregisterSong(int16_t handle);
 int16_t MUS_QrySongPlaying(int16_t handle);

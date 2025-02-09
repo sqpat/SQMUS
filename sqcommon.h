@@ -101,13 +101,13 @@ struct driverBlock {
 	int8_t	(*initHardware)(uint16_t port, uint8_t irq, uint8_t dma);
 	int8_t	(*deinitHardware)(void);
 
-	void	(*playNote)(uint8_t channel, uint8_t note, int8_t volume);
+	void	(*playNote)(uint8_t channel, uint8_t note, int8_t noteVolume);
 	void	(*releaseNote)(uint8_t channel, uint8_t note);
 	void	(*pitchWheel)(uint8_t channel, uint8_t pitch);
 	void	(*changeControl)(uint8_t channel, uint8_t controller, uint8_t value);
 	void	(*playMusic)();
 	void	(*stopMusic)();
-	void	(*changeVolume)(int8_t volume);
+	void	(*changeSystemVolume)(int16_t volume);
 	void	(*pauseMusic)();
 	void	(*unpauseMusic)();
 	int8_t	(*sendMIDI)(uint8_t command, uint8_t par1, uint8_t par2);
@@ -117,9 +117,10 @@ struct driverBlock {
 #define CHANNELS	16		// total channels 0..CHANNELS-1
 #define PERCUSSION	15		// percussion channel
 #define MAX_INSTRUMENTS 175
-
+#define DEFAULT_PITCH_BEND 0x80
 extern uint8_t	playingstate;
 #define DEFAULT_VOLUME  256
+#define MUTE_VOLUME  0
 extern uint16_t	playingloopcount;
 extern uint16_t	playingchannelMask;
 extern uint16_t	playingpercussMask;
@@ -127,7 +128,7 @@ extern uint32_t	playingtime;
 extern uint32_t	playingticks;
 
 extern struct driverBlock * playingdriver;
-
+extern int16_t playingvolume;
 
 
 

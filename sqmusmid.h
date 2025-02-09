@@ -9,7 +9,7 @@
 struct MIDIdata {
 	uint8_t	controllers[NUM_CONTROLLERS][CHANNELS]; // MUS controllers
 	uint8_t	channelLastVolume[CHANNELS];	// last volume
-	int8_t	pitchWheel[CHANNELS];		// pitch wheel value
+	uint8_t	pitchWheel[CHANNELS];		// pitch wheel value
 	int8_t	realChannels[CHANNELS];		// real MIDI output channels
 	uint8_t	percussions[128/8];		// bit-map of used percussions
 };
@@ -35,13 +35,13 @@ struct MIDIdata {
 
 
 
-void	MIDIplayNote(uint8_t channel, uint8_t note, int8_t volume);
+void	MIDIplayNote(uint8_t channel, uint8_t note, int8_t noteVolume);
 void	MIDIreleaseNote(uint8_t channel, uint8_t note);
 void	MIDIpitchWheel(uint8_t channel, uint8_t pitch);
 void	MIDIchangeControl(uint8_t channel, uint8_t controller, uint8_t value);
 void	MIDIplayMusic();
 void	MIDIstopMusic();
-void	MIDIchangeVolume(int8_t volume);
+void	MIDIchangeSystemVolume(int16_t noteVolume);
 void	MIDIpauseMusic();
 void	MIDIunpauseMusic();
 int8_t  MIDIinitDriver(void);

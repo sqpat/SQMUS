@@ -15,6 +15,8 @@
 #include <string.h>
 #include "DMX.H"
 #include <signal.h>
+#include <bios.h>
+#include <ctype.h>
 
 
 
@@ -100,6 +102,7 @@ uint32_t currentsong_int_count;
 int32_t currentsong_ticks_to_process = 0;
 
 
+
 #define MUS_SEGMENT 	0x6000
 #define MUS_LOCATION    (byte __far *) MK_FP(MUS_SEGMENT, 0x000)
 
@@ -144,6 +147,7 @@ uint16_t	playingchannelMask = 0xFFFF;
 uint16_t	playingpercussMask = 1 << PERCUSSION;
 uint32_t	playingtime;
 uint32_t	playingticks;
+int16_t     playingvolume = DEFAULT_VOLUME;
 
 
 #define MUS_INTERRUPT_RATE 140
@@ -288,7 +292,6 @@ void MUS_ServiceRoutine(){
 
 		printf_implemented("%04x: %02x L: %hhi C: %hhi, EV: %hhi:\t", currentsong_playing_offset, eventbyte, (lastflag != 0), channel, event);
 
-
 		// // todo is this the right way...?
 		// if (channel > currentsong_primary_channels && channel < 10 && channel != PERCUSSION_CHANNEL){
 		// 	printf("primary changed channel to percussion %i", channel);
@@ -345,7 +348,7 @@ void MUS_ServiceRoutine(){
 					increment++;
 					//OPLpitchWheel(channel, value - 0x80);
 
-					playingdriver->pitchWheel(channel, value - 0x80);
+					playingdriver->pitchWheel(channel, value);
 
 				}
 				break;
@@ -392,12 +395,11 @@ void MUS_ServiceRoutine(){
 				break;
 			case 6:
 				// Finish
-				printf("Song over\n");
+				printf("\nSong over\n");
 				if (currentsong_looping){
 					// is this right?
 					printf("LOOP SONG!\n");
 					doing_loop = true;
-					break;
 				} else {
 					finishplaying = 1;
 				}
@@ -429,6 +431,10 @@ void MUS_ServiceRoutine(){
 			// todo do we have to reset or something?
 			currentsong_playing_offset = currentsong_start_offset;
 		}
+		if (finishplaying){
+			break;
+		}
+
 
 	}
 	printf_implemented("INT DONE (#%i) \n", currentsong_int_count);
@@ -439,6 +445,40 @@ void MUS_ServiceRoutine(){
 
 struct OP2instrEntry AdLibInstrumentList[MAX_INSTRUMENTS];
 
+
+int8_t attemptDetectingAnyHardware(){
+	if (OPL3detectHardware(0x388, 0, 0)){
+		playingdriver = &OPL3driver;
+		printf("OPL3 Detected...\n");
+		OPL3initHardware(0x388, 0, 0);
+		playingdriver->initDriver();
+		printf("OPL3 Enabled...\n");
+	} else if (OPL2detectHardware(0x388, 0, 0)){
+		printf("OPL2 Detected...\n");
+		playingdriver = &OPL2driver;
+		OPL2initHardware(0x388, 0, 0);
+		playingdriver->initDriver();
+		printf("OPL2 Enabled...\n");
+	} else if (MPU401detectHardware(MPU401PORT, 0, 0)){
+		playingdriver = &MPU401driver;
+		printf("MPU-401 Detected...\n");
+		playingdriver->initHardware(MPU401PORT, 0, 0);
+		playingdriver->initDriver();
+		printf("MPU-401 Enabled...\n");
+	} else if (SBMIDIdetectHardware(MPU401PORT, 0, 0)){
+		printf("SB MIDI Detected...\n");
+		playingdriver = &SBMIDIdriver;
+		playingdriver->initHardware(MPU401PORT, 0, 0);
+		playingdriver->initDriver();
+		printf("SB MIDI Enabled...\n");
+
+
+	} else {
+		printf("ERROR! No SB sound hardware detected!\n");
+		return 0;
+	}
+	return 1;
+}
 
 void sigint_catcher(int sig) {
 	TS_Shutdown();
@@ -476,48 +516,9 @@ int16_t main(void) {
 
 		printf("Enabling Sound...\n");
 	
-		
-/*	
-		if (OPL3detectHardware(0x388, 0, 0)){
-			printf("OPL3 Detected...\n");
-			OPL3initHardware(0x388, 0, 0);
-			printf("OPL3 Enabled...\n");
-		} else if (OPL2detectHardware(0x388, 0, 0)){
-			printf("OPL2 Detected...\n");
-			OPL2initHardware(0x388, 0, 0);
-			printf("OPL2 Enabled...\n");
-		} else {
-			printf("ERROR! No OPL hardware Detected!\n");
-			return 0;
-		}
+		// todo parameterize
 
-		if (MPU401detectHardware(MPU401PORT, 0, 0)){
-			printf("MPU-401 Detected...\n");
-			MIDIinitDriver();
-			printf("MPU-401 Enabled...\n");
-			playingdriver = &MPU401driver;
-			playingdriver->initHardware(MPU401PORT, 0, 0);
-			playingdriver->initDriver();
-
-		} else {
-			printf("ERROR! No MPU-401 hardware Detected!\n");
-			return 0;
-
-		}
-		*/
-
-
-
-		if (SBMIDIdetectHardware(MPU401PORT, 0, 0)){
-			printf("SB MIDI Detected...\n");
-			MIDIinitDriver();
-			printf("SB MIDI Enabled...\n");
-			playingdriver = &MPU401driver;
-			playingdriver->initHardware(MPU401PORT, 0, 0);
-			playingdriver->initDriver();
-
-		} else {
-			printf("ERROR! No SB MIDI hardware Detected!\n");
+		if (!attemptDetectingAnyHardware()){
 			return 0;
 		}
 
@@ -543,9 +544,42 @@ int16_t main(void) {
 		
 		printf("Interrupt scheduled at %i interrupts per second\n", MUS_INTERRUPT_RATE);
 
-		printf("Now looping until keypress\n");
+		printf("Now looping until ESC keypress\n");
 
-		while (!kbhit()){
+		while (true){
+			if (_bios_keybrd(_KEYBRD_READY)){
+				uint16_t key = _bios_keybrd(_KEYBRD_READ);
+				if (key == 0x011B){		/* Esc - exit to DOS */
+					break;
+				}
+			    if (key & 0xFF00){		/* if not extended key */
+					switch (toupper(key & 0x00FF)) {
+						case '=':
+						case '+':		/* '+' - increase volume */
+							if (playingvolume <= 512-4 ){
+								playingvolume += 4;
+								playingdriver->changeSystemVolume(playingvolume);
+							}
+							break;
+						case '-':		/* '-' - decrease volume */
+							if (playingvolume >= 4){
+								playingvolume -= 4;
+								playingdriver->changeSystemVolume(playingvolume);
+							} else {
+								playingdriver->changeSystemVolume(0);
+							}
+							break;
+						case '*':		/* '*' - normal volume */
+							playingdriver->changeSystemVolume(DEFAULT_VOLUME);
+							break;
+						case '/':		/* '/' - mute volume */
+							playingdriver->changeSystemVolume(MUTE_VOLUME);
+							break;
+					}
+				}
+
+			}
+
 			if (called){
 
 				uint16_t val1 = currentsong_int_count / (60 * MUS_INTERRUPT_RATE);
@@ -566,9 +600,9 @@ int16_t main(void) {
 		}
 
 		if (finishplaying){
-			printf("Song Finished, shutting down interrupt...\n");
+			printf("\nSong Finished, shutting down interrupt...\n");
 		} else {
-			printf("Detected keypress, shutting down interrupt...\n");
+			printf("\nDetected ESC keypress, shutting down interrupt...\n");
 		}
 
 		TS_Shutdown();
