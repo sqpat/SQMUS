@@ -274,10 +274,11 @@ void MIDIstopMusic(){
     struct MIDIdata *data = &mididriverData;
 
     for (i = 0; i < CHANNELS; i++) {
-        int8_t MIDIchannel;
-        if ( (MIDIchannel = data->realChannels[i]) < 0){
+        int8_t MIDIchannel = data->realChannels[i];
+        if (MIDIchannel < 0){
             continue;
         }
+        
         if (MIDIchannel != MIDI_PERC){
             stopChannel(MIDIchannel);
         } else {
@@ -288,6 +289,7 @@ void MIDIstopMusic(){
                 }
             }
         }
+        
     }
 }
 

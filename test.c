@@ -496,6 +496,9 @@ int16_t main(void) {
 			MIDIinitDriver();
 			printf("MPU-401 Enabled...\n");
 			playingdriver = &MPU401driver;
+			playingdriver->initHardware(MPU401PORT, 0, 0);
+			playingdriver->initDriver();
+
 		} else {
 			printf("ERROR! No MIDI hardware Detected!\n");
 			return 0;
@@ -556,9 +559,9 @@ int16_t main(void) {
 		printf("Shut down interrupt, flushing adlib...\n");
 
 
-		OPLstopMusic();
+		playingdriver->stopMusic();
 		//AL_Reset();
-		OPL2deinitHardware();
+		playingdriver->deinitHardware();
 
 		printf("Adlib state cleared, exiting program...\n");
 
