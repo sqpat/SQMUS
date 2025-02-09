@@ -89,20 +89,15 @@ struct OP2instrEntry {
 extern struct driverBlock OPL2driver;
 extern struct driverBlock OPL3driver;
 
-void	OPLplayNote(uint8_t channel, uint8_t note, int8_t volume);
+void	OPLplayNote(uint8_t channel, uint8_t note, int8_t noteVolume);
 void	OPLreleaseNote(uint8_t channel, uint8_t note);
 void    OPLpitchWheel(uint8_t channel, uint8_t pitch);
 void	OPLchangeControl(uint8_t channel, uint8_t controller, uint8_t value);
 void	OPLplayMusic();
 void	OPLstopMusic();
 void	OPLchangeSystemVolume(int16_t systemVolume);
-void	OPLpauseMusic();
-void	OPLunpauseMusic();
 
 int8_t	OPLinitDriver(void);
-int8_t  OPLdeinitDriver(void);
-int8_t	OPLdriverParam(uint16_t message, uint16_t param1, void *param2);
-int8_t  OPLloadBank(int16_t fd, uint8_t bankNumber);
 
 int8_t	OPL2detectHardware(uint16_t port, uint8_t irq, uint8_t dma);
 int8_t	OPL2initHardware(uint16_t port, uint8_t irq, uint8_t dma);
@@ -112,7 +107,6 @@ int8_t	OPL3detectHardware(uint16_t port, uint8_t irq, uint8_t dma);
 int8_t	OPL3initHardware(uint16_t port, uint8_t irq, uint8_t dma);
 int8_t	OPL3deinitHardware(void);
 
-int8_t OPLsendMIDI(uint8_t command, uint8_t par1, uint8_t par2);
 
 
 #define ADLIBPORT	0x388
@@ -129,31 +123,20 @@ extern uint16_t OPLport;
 extern uint8_t  OPLchannels;
 extern uint8_t  OPL3mode;
 
-uint8_t OPLwriteReg(uint16_t reg, uint8_t data);
-void	  OPLwriteChannel(uint8_t regbase, uint8_t channel, uint8_t data1, uint8_t data2);
-void	  OPLwriteValue(uint8_t regbase, uint8_t channel, uint8_t value);
-void	  OPLwriteFreq(uint8_t channel, uint16_t freq, uint8_t octave, uint8_t keyon);
-int8_t	OPLconvertVolume(uint8_t data, int8_t volume);
-int8_t	OPLpanVolume(int8_t volume, int8_t pan);
-void	  OPLwriteVolume(uint8_t channel, struct OPL2instrument *instr, int8_t volume);
-void	  OPLwritePan(uint8_t channel, struct OPL2instrument *instr, int8_t pan);
-void	  OPLwriteInstrument(uint8_t channel, struct OPL2instrument *instr);
-void	  OPLshutup(void);
-void	  OPLinit(uint16_t port, uint8_t OPL3);
-void	  OPLdeinit(void);
-int16_t	OPL2detect(uint16_t port);
-int16_t	OPL3detect(uint16_t port);
+uint8_t 	OPLwriteReg(uint16_t reg, uint8_t data);
+int8_t		OPLconvertVolume(uint8_t data, int8_t noteVolume);
+int8_t		OPLpanVolume(int8_t noteVolume, int8_t pan);
+void	  	OPLwriteVolume(uint8_t channel, struct OPL2instrument *instr, int8_t noteVolume);
+void	  	OPLwritePan(uint8_t channel, struct OPL2instrument *instr, int8_t pan);
+void	  	OPLwriteInstrument(uint8_t channel, struct OPL2instrument *instr);
+void	  	OPLinit(uint16_t port, uint8_t OPL3);
+void	  	OPLdeinit(void);
+int16_t		OPL2detect(uint16_t port);
+int16_t		OPL3detect(uint16_t port);
  
 
  
-
-
  
-
-void	SBsetMixer(uint16_t SBport, uint8_t index, uint8_t data);
-int16_t	SBgetMixer(uint16_t SBport, uint8_t index);
-int16_t	SBdetectMixer(uint16_t port);
-
 
 
 #endif

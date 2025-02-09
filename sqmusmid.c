@@ -37,7 +37,7 @@ uint16_t percussMask;
 	(playingdriver->sendMIDI((chn) | (cmd), (par1), (par2)))
 
 /* touch MIDI channel timestamp */
-#define TOUCH(channel)	MIDItime[channel] = MLtime
+#define TOUCH(channel)	MIDItime[channel] = playingtime
 
 #define MIDI_PERC	9	/* standard MIDI percussion channel */
 
@@ -81,7 +81,7 @@ int8_t findFreeMIDIChannel(uint8_t channel){
     }
 
     /* find the longest time untouched i */
-    time = MLtime;
+    time = playingtime;
     oldest = 0xFF;
 
     for (i = 0; i < CHANNELS; i++){
@@ -305,24 +305,11 @@ void MIDIchangeSystemVolume(int16_t systemVolume){
     if (playingstate == ST_PLAYING){
 	    sendSystemVolume(systemVolume);
     }
-}
-
-void MIDIpauseMusic(){
-    sendSystemVolume(0);
-}
-
-void MIDIunpauseMusic(){
-    sendSystemVolume(playingvolume);
-}
-
+} 
 
 int8_t MIDIinitDriver(void){
     memset(MIDIchannels, 0xFF, sizeof MIDIchannels);
     MIDIchannels[MIDI_PERC] = ~(0xFF >> 1); /* mark perc. channel as always occupied */
     memset(MIDItime, 0, sizeof MIDItime);
     return 0;
-}
-
-int8_t MIDIdeinitDriver(void){
-    return 0;
-}
+} 

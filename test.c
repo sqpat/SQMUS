@@ -17,36 +17,9 @@
 #include <signal.h>
 #include <bios.h>
 #include <ctype.h>
+#include <malloc.h>
 
 
-
-
-
-//#define LOCKMEMORY
-//#define NOINTS
-//#define USE_USRHOOKS
-
-
-
-
-
-
-
-// REGS stuff used for int calls
-union REGS regs;
-struct SREGS sregs;
-
-#define intx86(a, b, c) int86(a, b, c)
-
-static uint16_t pageframebase;
-
-#define _outbyte(x,y) (outp(x,y))
-#define _outhword(x,y) (outpw(x,y))
-
-#define _inbyte(x) (inp(x))
-#define _inhword(x) (inpw(x))
- 
- 
 //#define showimplemented 1
 
 void donothing(){
@@ -59,11 +32,7 @@ void donothing(){
 	#define printf_implemented printf
 #else
 	#define printf_implemented(...) donothing
-
 #endif
-
-
-
 
 #define FREAD_BUFFER_SIZE 512
 
@@ -89,22 +58,40 @@ void  far_fread(void __far* dest, uint16_t elementsize, uint16_t elementcount, F
 
 }
 
-uint16_t currentsong_looping;
-uint16_t currentsong_start_offset;
-uint16_t currentsong_playing_offset;
-uint16_t currentsong_length;
-int16_t currentsong_primary_channels;
-int16_t currentsong_secondary_channels;
-uint16_t currentsong_num_instruments;       // 0-127
-
-uint16_t currentsong_play_timer;
-uint32_t currentsong_int_count;
-int32_t currentsong_ticks_to_process = 0;
 
 
 
-#define MUS_SEGMENT 	0x6000
-#define MUS_LOCATION    (byte __far *) MK_FP(MUS_SEGMENT, 0x000)
+struct driverBlock	*playingdriver = &OPL2driver;
+
+
+// todo
+// dynamic load of num instruments
+// parse filename
+// parse sound engine choise
+// test sbmidi
+// use playingstate
+
+uint16_t 			currentsong_looping;
+uint16_t 			currentsong_start_offset;
+uint16_t 			currentsong_playing_offset;
+uint16_t 			currentsong_length;
+int16_t 			currentsong_primary_channels;
+int16_t 			currentsong_secondary_channels;
+uint16_t 			currentsong_num_instruments;       // 0-127
+
+uint16_t 			currentsong_play_timer;
+uint32_t 			currentsong_int_count;
+int32_t 			currentsong_ticks_to_process = 0;
+byte __far*  		muslocation;
+
+
+uint8_t				playingstate = ST_PLAYING;			
+uint16_t			playingpercussMask = 1 << PERCUSSION;	// todo #define? or should other instruments be forced into percussion?
+int16_t     		playingvolume = DEFAULT_VOLUME;
+volatile uint32_t 	playingtime = 0;
+volatile int16_t 	called = 0;
+volatile int16_t 	finishplaying = 0;
+
 
 int16_t MUS_Parseheader(byte __far *data){
     int16_t __far *  worddata = (int16_t __far *)data;
@@ -137,136 +124,7 @@ int16_t MUS_Parseheader(byte __far *data){
 }
 
 
-
-struct driverBlock	*playingdriver = &OPL2driver;
-
-
-uint8_t	playingstate = ST_PLAYING;			
-uint16_t	playingloopcount;
-uint16_t	playingchannelMask = 0xFFFF;
-uint16_t	playingpercussMask = 1 << PERCUSSION;
-uint32_t	playingtime;
-uint32_t	playingticks;
-int16_t     playingvolume = DEFAULT_VOLUME;
-
-
 #define MUS_INTERRUPT_RATE 140
-volatile int16_t called = 0;
-volatile int16_t finishplaying = 0;
-
-#define MUS_EVENT_CHANGE_INSTRUMENT 	0
-#define MUS_EVENT_BANK_SELECT 			1
-#define MUS_EVENT_MODULATION 			2
-#define MUS_EVENT_VOLUME 				3
-#define MUS_EVENT_PAN 					4
-#define MUS_EVENT_EXPRESSION 			5
-#define MUS_EVENT_REVERB 				6
-#define MUS_EVENT_CHORUS 				7
-#define MUS_EVENT_SUSTAIN 				8
-#define MUS_EVENT_SOFT	 				9
-#define MUS_EVENT_ALL_SOUNDS_OFF		10
-#define MUS_EVENT_ALL_NOTES_OFF_FADE	11
-#define MUS_EVENT_MONO	 				12
-#define MUS_EVENT_POLY	 				13
-#define MUS_EVENT_RESET_CONTROLLERS	 	14
-#define MUS_EVENT_UNIMPLEMENTED			15
-
-/*
-int16_t MUS_ProcessControllerEvent(byte channel, byte controllernumber, uint8_t data){
-
-	// todo combine bytes and switch case a word
-	switch (controllernumber){
-
-		case MUS_EVENT_CHANGE_INSTRUMENT:
-			// change instrument
-			printf_implemented("%hhx %hhx: change instrument?\n", controllernumber, data);
-			AL_ProgramChange(channel, data);
-			break;
-
-		case MUS_EVENT_BANK_SELECT:
-			// bank select, 0 by default
-			printf("%hhx %hhx: bank select?", controllernumber, data);
-			break;
-		
-		case MUS_EVENT_MODULATION:
-			// modulation (vibrato frequency)
-			printf("%hhx %hhx: modulation", controllernumber, data);
-			break;
-		case MUS_EVENT_VOLUME:
-			// volume 0 - 127. 100 is normal?
-			printf_implemented("%hhx %hhx: volume\n", controllernumber, data);
-			AL_SetChannelVolume(channel, data);
-			break;
-		case MUS_EVENT_PAN:
-			// pan (balance) 0 left 64 center 127 right
-			printf_implemented("%hhx %hhx: pan\n", controllernumber, data);
-			AL_SetChannelPan(channel, data);
-
-			break;
-		case MUS_EVENT_EXPRESSION:
-			// expression
-			printf("%hhx %hhx: expression", controllernumber, data);
-			break;
-		case MUS_EVENT_REVERB:
-			// reverb depth
-			printf("%hhx %hhx: reverb", controllernumber, data);
-			break;
-		case MUS_EVENT_CHORUS:
-			// chorus depth
-			printf("%hhx %hhx: chorus", controllernumber, data);
-			break;
-		case MUS_EVENT_SUSTAIN:
-			// sustain pedal
-			printf("%hhx %hhx: sustain pedal", controllernumber, data);
-			break;
-		case MUS_EVENT_SOFT:
-			// soft pedal
-			printf("%hhx %hhx: soft pedal", controllernumber, data);
-			break;
-
-		case MUS_EVENT_ALL_SOUNDS_OFF:
-		case MUS_EVENT_ALL_NOTES_OFF_FADE:
-			printf_implemented("%hhx: turn all notes off", controllernumber);
-			AL_AllNotesOff(channel);
-			break;
-
-
-		//case MUS_EVENT_MONO:
-			// mono (one note on channel)
-			//printf("%hhx: turn channel mono", controllernumber);
-			// IGNORED in midi mode. used by opl2
-			//break;
-		//case MUS_EVENT_POLY:
-			// poly (multiple notes on channel)
-			//printf("%hhx: turn channel poly", controllernumber);
-			// IGNORED in midi mode. used by opl2
-			//break;
-		case MUS_EVENT_RESET_CONTROLLERS:
-			// reset all controllers for this channel
-			printf_implemented("%hhx: reset all channel controllers", controllernumber);
-
-			AL_ResetVoices();
-			AL_SetChannelVolume(channel, AL_DefaultChannelVolume);
-			AL_SetChannelPan(channel, 64);
-			AL_SetChannelDetune(channel, 0);
-
-			break;
-		case MUS_EVENT_UNIMPLEMENTED:
-			// never implemented?
-			printf("%hhx: unimplemented event?\n", controllernumber);
-			break;
-	
-		default:
-			return 0;
-
-	}
-
-	return 1;
-}
-*/
-
-volatile uint32_t	MLtime = 0;
-
 
 
 void MUS_ServiceRoutine(){
@@ -283,12 +141,12 @@ void MUS_ServiceRoutine(){
 		// ok lets actually process events....
 		int16_t increment = 1; // 1 for the event
 		byte doing_loop = false;
-		byte __far* currentlocation = MK_FP(MUS_SEGMENT, currentsong_playing_offset);
+		byte __far* currentlocation = muslocation + currentsong_playing_offset;
 		uint8_t eventbyte = currentlocation[0];
 		uint8_t event     = (eventbyte & 0x70) >> 4;
 		int8_t  channel   = (eventbyte & 0x0F);
 		byte lastflag  = (eventbyte & 0x80);
-		int32_t delay_amt = 0;
+		uint32_t delay_amt = 0;
 
 		printf_implemented("%04x: %02x L: %hhi C: %hhi, EV: %hhi:\t", currentsong_playing_offset, eventbyte, (lastflag != 0), channel, event);
 
@@ -344,7 +202,7 @@ void MUS_ServiceRoutine(){
 					byte value 			  = currentlocation[1];
 					// todo do we use a 2nd value for lsb/msb?
 					
-					printf("bend channel by 0x%hhx\n", value);
+					printf_implemented("bend channel by 0x%hhx\n", value);
 					increment++;
 					//OPLpitchWheel(channel, value - 0x80);
 
@@ -406,7 +264,7 @@ void MUS_ServiceRoutine(){
 				break;
 			case 7:
 				// Unused
-				printf("UNUSED EVENT 7?\n");
+				printf_implemented("UNUSED EVENT 7?\n");
 				increment++;   // advance for one data byte
 				break;
 		}
@@ -414,7 +272,7 @@ void MUS_ServiceRoutine(){
 		currentsong_playing_offset += increment;
 
 		while (lastflag){
-			currentlocation = MK_FP(MUS_SEGMENT, currentsong_playing_offset);
+			currentlocation = muslocation + currentsong_playing_offset;
 			delay_amt <<= 8;
 			lastflag = currentlocation[0];
 			delay_amt += (lastflag &0x7F);
@@ -440,23 +298,24 @@ void MUS_ServiceRoutine(){
 	printf_implemented("INT DONE (#%i) \n", currentsong_int_count);
 	called = 1;
 	currentsong_int_count++;
-	MLtime++;
+	playingtime++;
 }
 
 struct OP2instrEntry AdLibInstrumentList[MAX_INSTRUMENTS];
 
 
 int8_t attemptDetectingAnyHardware(){
-	if (OPL3detectHardware(0x388, 0, 0)){
+	
+	if (OPL3detectHardware(ADLIBPORT, 0, 0)){
 		playingdriver = &OPL3driver;
 		printf("OPL3 Detected...\n");
-		OPL3initHardware(0x388, 0, 0);
+		playingdriver->initHardware(ADLIBPORT, 0, 0);
 		playingdriver->initDriver();
 		printf("OPL3 Enabled...\n");
-	} else if (OPL2detectHardware(0x388, 0, 0)){
+	} else if (OPL2detectHardware(ADLIBPORT, 0, 0)){
 		printf("OPL2 Detected...\n");
 		playingdriver = &OPL2driver;
-		OPL2initHardware(0x388, 0, 0);
+		playingdriver->initHardware(ADLIBPORT, 0, 0);
 		playingdriver->initDriver();
 		printf("OPL2 Enabled...\n");
 	} else if (MPU401detectHardware(MPU401PORT, 0, 0)){
@@ -482,6 +341,10 @@ int8_t attemptDetectingAnyHardware(){
 
 void sigint_catcher(int sig) {
 	TS_Shutdown();
+	if (playingdriver){
+		playingdriver->stopMusic();
+		playingdriver->deinitHardware();
+	}
 	exit(sig);
 }
 
@@ -496,29 +359,35 @@ int16_t main(void) {
 		filesize = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
 		// where we're going, we don't need DOS's permission...
-		far_fread(MUS_LOCATION, filesize, 1, fp);
-		fclose(fp);
-		result = MUS_Parseheader(MUS_LOCATION);
+		muslocation = _fmalloc(filesize);
+		if (!muslocation){
+			printf("Couldn't malloc %u bytes", filesize);
+			return 0;
+		}
 
-		printf("Loaded %s into memory location 0x%lx successfully...\n", filename, MUS_LOCATION);
+		far_fread(muslocation, filesize, 1, fp);
+		fclose(fp);
+		
+		result = MUS_Parseheader(muslocation);
+		printf("Loaded %s into memory location 0x%lx successfully...\n", filename, muslocation);
 
 		fp = fopen("genmidi.lmp", "rb");
 		if (fp){
+			// todo read based on numinstruments
 			far_fread(AdLibInstrumentList, sizeof(struct OP2instrEntry) * MAX_INSTRUMENTS, 1, fp);
 			printf("Read instrument data!\n");
 			fclose(fp);
 		} else {
 			printf("Error reading genmidi.lmp!\n");
+			_ffree(muslocation);
 			return 0;
-			
 		}
 
 
 		printf("Enabling Sound...\n");
-	
-		// todo parameterize
 
 		if (!attemptDetectingAnyHardware()){
+			_ffree(muslocation);
 			return 0;
 		}
 
@@ -527,16 +396,8 @@ int16_t main(void) {
 		playingdriver->stopMusic();
 		playingdriver->playMusic();
 
-
-		//OPLinitDriver();
-
 		printf("Scheduling interrupt\n");
 		signal(SIGINT, sigint_catcher);
-
-		//OPLstopMusic();
-		//OPLplayMusic();
-
-
 
 		TS_Startup();
 		TS_ScheduleTask(MUS_ServiceRoutine, MUS_INTERRUPT_RATE);
@@ -586,10 +447,11 @@ int16_t main(void) {
 				uint16_t val2 = (currentsong_int_count / (MUS_INTERRUPT_RATE)) % 60;
 				uint16_t val3 = (1000L * (currentsong_int_count % (MUS_INTERRUPT_RATE))) / (MUS_INTERRUPT_RATE);
 
-				cprintf("\rPlaying %s ... %2i:%02i.%03i (%li) ", filename,
+				cprintf("\rPlaying %s ... %2i:%02i.%03i   Vol: %i (%li) ", filename,
 					val1, 
 					val2,
 					val3,
+					playingvolume,
 					currentsong_int_count
 					);
 
@@ -606,16 +468,16 @@ int16_t main(void) {
 		}
 
 		TS_Shutdown();
-
-		printf("Shut down interrupt, flushing adlib...\n");
+		printf("Shut down interrupt, flushing sound hardware...\n");
 
 
 		playingdriver->stopMusic();
-		//AL_Reset();
 		playingdriver->deinitHardware();
 
-		printf("Adlib state cleared, exiting program...\n");
+		printf("Sound hardware state cleared, freeing memory...\n");
 
+		_ffree(muslocation);
+		printf("Exiting program...\n");
 
 	} else {
 		printf("Error: Could not find %s", filename);

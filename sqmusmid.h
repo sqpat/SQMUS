@@ -42,23 +42,9 @@ void	MIDIchangeControl(uint8_t channel, uint8_t controller, uint8_t value);
 void	MIDIplayMusic();
 void	MIDIstopMusic();
 void	MIDIchangeSystemVolume(int16_t noteVolume);
-void	MIDIpauseMusic();
-void	MIDIunpauseMusic();
 int8_t  MIDIinitDriver(void);
-int8_t  MIDIdeinitDriver(void);
 
 
-
-/*
-extern struct driverBlock SBMIDIdriver;
-
-int	SBMIDIsendMIDI(uint command, uint par1, uint par2);
-int	SBMIDIdriverParam(uint message, uint param1, void *param2);
-int	SBMIDIloadBank(int fd, uint bankNumber);
-
-int	SBMIDIdetectHardware(uint port, uint8_t irq, uint8_t dma);
-int	SBMIDIinitHardware(uint port, uint8_t irq, uint8_t dma);
-int	SBMIDIdeinitHardware(void);
-*/
+ 
 
 #endif

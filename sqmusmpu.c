@@ -136,21 +136,7 @@ int8_t MPU401sendMIDI(uint8_t command, uint8_t par1, uint8_t par2){
     return 0;
 }
 
-int8_t MPU401driverParam(uint16_t message, uint16_t param1, void *param2){
-    switch (message) {
-        case DP_SYSEX:
-            MPU401sendBlock((uint8_t *)param2, param1);
-            break;
-    }
-    return 0;
-}
-
-
-int8_t MPU401loadBank(int16_t fd, uint8_t bankNumber){
-    return 0;
-}
-
-
+ 
 
 int8_t MPU401detectHardware(uint16_t port, uint8_t irq, uint8_t dma){
     int16_t savedMPU401port = MPU401port;
@@ -175,15 +161,10 @@ int8_t MPU401deinitHardware(void){
     return MPU401sendCommand(MPU401_RESET);
 }
 
-
-
 struct driverBlock MPU401driver = {
 	DRV_MPU401,			// driverID
 	sizeof(struct MIDIdata),	// datasize
 	MIDIinitDriver,
-	MIDIdeinitDriver,
-	MPU401driverParam,
-	MPU401loadBank,
 	MPU401detectHardware,
 	MPU401initHardware,
 	MPU401deinitHardware,
@@ -195,7 +176,5 @@ struct driverBlock MPU401driver = {
 	MIDIplayMusic,
 	MIDIstopMusic,
 	MIDIchangeSystemVolume,
-	MIDIpauseMusic,
-	MIDIunpauseMusic,
 	MPU401sendMIDI
 };

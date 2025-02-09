@@ -93,10 +93,7 @@ struct driverBlock {
 	uint16_t	datasize;
 
 	int8_t	(*initDriver)(void);
-	int8_t	(*deinitDriver)(void);
     
-	int8_t	(*driverParam)(uint16_t message, uint16_t param1, void *param2);
-	int8_t	(*loadBank)(int16_t fd, uint8_t bankNumber);
 	int8_t	(*detectHardware)(uint16_t port, uint8_t irq, uint8_t dma);
 	int8_t	(*initHardware)(uint16_t port, uint8_t irq, uint8_t dma);
 	int8_t	(*deinitHardware)(void);
@@ -108,8 +105,6 @@ struct driverBlock {
 	void	(*playMusic)();
 	void	(*stopMusic)();
 	void	(*changeSystemVolume)(int16_t volume);
-	void	(*pauseMusic)();
-	void	(*unpauseMusic)();
 	int8_t	(*sendMIDI)(uint8_t command, uint8_t par1, uint8_t par2);
 
 };
@@ -121,21 +116,13 @@ struct driverBlock {
 extern uint8_t	playingstate;
 #define DEFAULT_VOLUME  256
 #define MUTE_VOLUME  0
-extern uint16_t	playingloopcount;
-extern uint16_t	playingchannelMask;
 extern uint16_t	playingpercussMask;
-extern uint32_t	playingtime;
-extern uint32_t	playingticks;
 
 extern struct driverBlock * playingdriver;
 extern int16_t playingvolume;
 
 
 
-/* driverParam message codes */
-#define DP_NOTHING		0x0000	/* no action */
-#define DP_SYSEX		0x0001	/* send SYStem EXclusive message */
-#define DP_SINGLE_VOICE		0x0002	/* OPLx: disabling double-voice mode */
 /* DP_SINGLE_VOICE: param1 codes */
 #define DPP_SINGLE_VOICE_OFF	0	/* default: off */
 #define DPP_SINGLE_VOICE_ON	1
@@ -156,6 +143,6 @@ extern int16_t playingvolume;
 #define true (1 == 1)
 #define false (!true)
 
-extern	volatile uint32_t	MLtime;
+extern	volatile uint32_t	playingtime;
 
 #endif

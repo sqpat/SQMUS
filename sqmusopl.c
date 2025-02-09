@@ -19,7 +19,7 @@ extern struct OP2instrEntry AdLibInstrumentList[MAX_INSTRUMENTS];
 uint16_t OPLport = ADLIBPORT;
 uint8_t OPLchannels = OPL2CHANNELS;
 uint8_t OPL3mode = 0;
-extern volatile uint32_t	MLtime;
+extern volatile uint32_t	playingtime;
 
 /*
  * Direct write to any OPL2/OPL3 FM synthesizer register.
@@ -318,9 +318,6 @@ struct driverBlock OPL2driver = {
 	DRV_OPL2,			// driverID
 	sizeof(struct OPLdata),		// datasize
 	OPLinitDriver,
-	OPLdeinitDriver,
-	OPLdriverParam,
-	OPLloadBank,
 	OPL2detectHardware,
 	OPL2initHardware,
 	OPL2deinitHardware,
@@ -331,10 +328,7 @@ struct driverBlock OPL2driver = {
 	OPLchangeControl,
 	OPLplayMusic,
 	OPLstopMusic,
-	OPLchangeSystemVolume,
-	OPLpauseMusic,
-	OPLunpauseMusic,
-	OPLsendMIDI
+	OPLchangeSystemVolume
 };
 
 
@@ -342,9 +336,6 @@ struct driverBlock OPL3driver = {
 	DRV_OPL3,			// driverID
 	sizeof(struct OPLdata),		// datasize
 	OPLinitDriver,
-	OPLdeinitDriver,
-	OPLdriverParam,
-	OPLloadBank,
 	OPL3detectHardware,
 	OPL3initHardware,
 	OPL3deinitHardware,
@@ -355,10 +346,7 @@ struct driverBlock OPL3driver = {
 	OPLchangeControl,
 	OPLplayMusic,
 	OPLstopMusic,
-	OPLchangeSystemVolume,
-	OPLpauseMusic,
-	OPLunpauseMusic,
-	OPLsendMIDI
+	OPLchangeSystemVolume
 };
 
 
@@ -373,12 +361,12 @@ static struct channelEntry {
 	uint8_t	note;			/* note number */
 	uint8_t	flags;			/* see CH_xxx below */
 	uint8_t	realnote;		/* adjusted note number */
-	uint8_t	pitchwheel;			/* pitch-wheel value */
+	uint8_t	pitchwheel;		/* pitch-wheel value */
 	int8_t	finetune;		/* frequency fine-tune */
-	int8_t  noteVolume;			/* note volume */
+	int8_t  noteVolume;		/* note volume */
 	int8_t	realvolume;		/* adjusted note volume */
 	struct OPL2instrument *instr;	/* current instrument */
-	uint32_t	time;			/* note start time */
+	uint32_t time;			/* note start time */
 } channels[MAXCHANNELS];
 
 /* Flags: */
@@ -514,7 +502,7 @@ static uint8_t occupyChannel(uint8_t slot, uint8_t channel,
 		ch->flags |= CH_VIBRATO;
 	}
 
-    ch->time = MLtime;
+    ch->time = playingtime;
 
     if (noteVolume == -1){
 		noteVolume = OPL2driverdata.channelLastVolume[channel];
@@ -603,7 +591,7 @@ int8_t findFreeChannel(uint8_t flag){
     static uint8_t last = 0xFF;
     uint8_t i;
     uint8_t oldest = 0xFF;
-    uint32_t oldesttime = MLtime;
+    uint32_t oldesttime = playingtime;
 
     /* find free channel */
     for(i = 0; i < OPLchannels; i++) {
@@ -714,7 +702,7 @@ void OPLpitchWheel(uint8_t channel, uint8_t pitch){
 		struct channelEntry *ch = &channels[i];
 		if (ch->channel == id) {
 			int16_t pitchadder;
-			ch->time = MLtime;
+			ch->time = playingtime;
 			pitchadder = (int16_t)ch->finetune + pitch;
 			ch->pitchwheel = (pitchadder & 0xFF);
 			writeFrequency(i, ch->realnote, ch->pitchwheel, 1);
@@ -737,7 +725,7 @@ void OPLchangeControl(uint8_t channel, uint8_t controller, uint8_t value){
 				struct channelEntry *ch = &channels[i];
 				if (ch->channel == id) {
 					uint8_t flags = ch->flags;
-					ch->time = MLtime;
+					ch->time = playingtime;
 					if (value >= MOD_MIN) {
 						ch->flags |= CH_VIBRATO;
 						if (ch->flags != flags){
@@ -757,7 +745,7 @@ void OPLchangeControl(uint8_t channel, uint8_t controller, uint8_t value){
 			for(i = 0; i < OPLchannels; i++) {
 				struct channelEntry *ch = &channels[i];
 				if (ch->channel == id) {
-					ch->time = MLtime;
+					ch->time = playingtime;
 					ch->realvolume = calcVolume(value, playingvolume, ch->noteVolume);
 					OPLwriteVolume(i, ch->instr, ch->realvolume);
 				}
@@ -768,7 +756,7 @@ void OPLchangeControl(uint8_t channel, uint8_t controller, uint8_t value){
 			for(i = 0; i < OPLchannels; i++) {
 				struct channelEntry *ch = &channels[i];
 				if (ch->channel == id) {
-					ch->time = MLtime;
+					ch->time = playingtime;
 					OPLwritePan(i, ch->instr, value);
 				}
 			}
@@ -812,37 +800,7 @@ void OPLchangeSystemVolume(int16_t systemVolume){
 		}
     }
 }
-
-void OPLpauseMusic(){
-    uint8_t i;
-    for(i = 0; i < OPLchannels; i++){
-		struct channelEntry *ch = &channels[i];
-		struct OPL2instrument *instr = ch->instr;
-		if (OPL3mode){
-			OPLwriteValue(0xC0, i, instr->feedback);
-		}
-		OPLwriteVolume(i, instr, 0);
-		OPLwriteChannel(0x60, i, 0, 0);	// attack, decay
-		OPLwriteChannel(0x80, i, instr->sust_rel_1 & 0xF0,
-		instr->sust_rel_2 & 0xF0);	// sustain, release
-    }
-}
-
-void OPLunpauseMusic(){
-    uint8_t i;
-    for(i = 0; i < OPLchannels; i++) {
-		struct channelEntry *ch = &channels[i];
-		struct OPL2instrument *instr = ch->instr;
-
-		OPLwriteChannel(0x60, i, instr->att_dec_1,  instr->att_dec_2);
-		OPLwriteChannel(0x80, i, instr->sust_rel_1, instr->sust_rel_2);
-		OPLwriteVolume(i, instr, ch->realvolume);
-		if (OPL3mode){
-			OPLwritePan(i, instr, OPL2driverdata.channelPan[ch->channel & 0xF]);
-		}
-    }
-}
-
+ 
 
 int8_t OPLinitDriver(void){
     int8_t i;
@@ -854,44 +812,8 @@ int8_t OPLinitDriver(void){
     //OPLinstruments = NULL;
     return 0;
 }
-
-int8_t OPLdeinitDriver(void){
-    //free(OPLinstruments);
-    //OPLinstruments = NULL;
-    return 0;
-}
-
-int8_t OPLdriverParam(uint16_t message, uint16_t param1, void *param2){
-    switch (message) {
-		case DP_SINGLE_VOICE:
-			OPLsinglevoice = param1;
-			break;
-    }
-    return 0;
-}
-
-int8_t OPLloadBank(int16_t fd, uint8_t bankNumber){
-	/*
-    static uint8_t masterhdr[8] = "#OPL_II#";
-    uint8_t hdr[8];
-    struct OP2instrEntry *instruments;
-
-    if (read(fd, &hdr, sizeof hdr) != sizeof hdr)
-	return -1;
-    if (memcmp(hdr, masterhdr, sizeof hdr))
-	return -2;
-    if ( (instruments = (struct OP2instrEntry *)calloc(OP2INSTRCOUNT, OP2INSTRSIZE)) == NULL)
-	return -3;
-    if (read(fd, instruments, OP2INSTRSIZE * OP2INSTRCOUNT) != OP2INSTRSIZE * OP2INSTRCOUNT)
-    {
-	free(instruments);
-	return -1;
-    }
-    free(OPLinstruments);
-    OPLinstruments = instruments;
-	*/
-    return 0;
-}
+ 
+ 
 
 int8_t OPL2detectHardware(uint16_t port, uint8_t irq, uint8_t dma){
     return OPL2detect(port);
@@ -921,6 +843,3 @@ int8_t OPL3deinitHardware(void){
     return 0;
 }
 
-int8_t OPLsendMIDI(uint8_t command, uint8_t par1, uint8_t par2){
-    return 0;
-}

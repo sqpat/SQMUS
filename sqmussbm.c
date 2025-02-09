@@ -72,21 +72,8 @@ int8_t SBMIDIsendMIDI(uint8_t command, uint8_t par1, uint8_t par2){
     _enable();
     return 0;
 }
-
-int8_t SBMIDIdriverParam(uint16_t message, uint16_t param1, void *param2){
-    switch (message) {
-        case DP_SYSEX:
-            SBMIDIsendBlock((uint8_t *)param2, param1);
-            break;
-    }
-    return 0;
-}
-
-
-int8_t SBMIDIloadBank(int16_t fd, uint8_t bankNumber){
-    return 0;
-}
-
+ 
+ 
 
 int8_t SBMIDIdetectHardware(uint16_t port, uint8_t irq, uint8_t dma){
     runningStatus = 0;
@@ -111,9 +98,6 @@ struct driverBlock SBMIDIdriver = {
 	sizeof(struct MIDIdata),	// datasize
 
 	MIDIinitDriver,
-	MIDIdeinitDriver,
-	SBMIDIdriverParam,
-	SBMIDIloadBank,
 	SBMIDIdetectHardware,
 	SBMIDIinitHardware,
 	SBMIDIdeinitHardware,
@@ -125,7 +109,5 @@ struct driverBlock SBMIDIdriver = {
 	MIDIplayMusic,
 	MIDIstopMusic,
 	MIDIchangeSystemVolume,
-	MIDIpauseMusic,
-	MIDIunpauseMusic,
 	SBMIDIsendMIDI
 };
