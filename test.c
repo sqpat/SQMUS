@@ -9,6 +9,7 @@
 #include "sqcommon.h"
 #include "sqmusopl.h"
 #include "sqmusmpu.h"
+#include "sqmussbm.h"
 #include "sqmusmid.h"
 #include <sys/types.h>
 #include <string.h>
@@ -489,7 +490,6 @@ int16_t main(void) {
 			printf("ERROR! No OPL hardware Detected!\n");
 			return 0;
 		}
-		*/
 
 		if (MPU401detectHardware(MPU401PORT, 0, 0)){
 			printf("MPU-401 Detected...\n");
@@ -500,10 +500,27 @@ int16_t main(void) {
 			playingdriver->initDriver();
 
 		} else {
-			printf("ERROR! No MIDI hardware Detected!\n");
+			printf("ERROR! No MPU-401 hardware Detected!\n");
 			return 0;
 
 		}
+		*/
+
+
+
+		if (SBMIDIdetectHardware(MPU401PORT, 0, 0)){
+			printf("SB MIDI Detected...\n");
+			MIDIinitDriver();
+			printf("SB MIDI Enabled...\n");
+			playingdriver = &MPU401driver;
+			playingdriver->initHardware(MPU401PORT, 0, 0);
+			playingdriver->initDriver();
+
+		} else {
+			printf("ERROR! No SB MIDI hardware Detected!\n");
+			return 0;
+		}
+
 
 		printf("Driver song setup...\n");
 		playingdriver->stopMusic();

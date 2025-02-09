@@ -32,6 +32,7 @@ GLOBOBJS = test.obj &
 sqmusopl.obj &
 sqmusmpu.obj &
 sqmusmid.obj &
+sqmussbm.obj &
 dmx.obj
 
 

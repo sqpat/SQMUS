@@ -48,8 +48,6 @@ int8_t  MIDIinitDriver(void);
 int8_t  MIDIdeinitDriver(void);
 
 
-#define DRV_SBMIDI	0x0005
-#define SBMIDIPORT	0x220
 
 /*
 extern struct driverBlock SBMIDIdriver;
