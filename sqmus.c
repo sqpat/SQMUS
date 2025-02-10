@@ -59,11 +59,11 @@ struct driverBlock	*playingdriver = &OPL2driver;
 
 // todo
 // x dynamic load of num instruments
-// 1. parse filename
-// 2. parse sound engine choice
+// x parse filename
+// x parse sound engine choice
 // 3. test sbmidi
-// 4. test looping
-// 5. locallib printf?
+// x. test looping
+// n locallib printf?
 // use playingstate
 
 uint16_t 			currentsong_looping;
@@ -88,6 +88,7 @@ volatile int16_t 	called = 0;
 volatile int16_t 	finishplaying = 0;
 OP2instrEntry 		AdLibInstrumentList[MAX_INSTRUMENTS_PER_TRACK];
 uint8_t 			instrumentlookup[MAX_INSTRUMENTS];
+int8_t				loops_enabled = false;
 
 int16_t 	myargc;
 int8_t**	myargv;
@@ -240,10 +241,16 @@ void MUS_ServiceRoutine(){
 				printmessage("\nSong over\n");
 				if (currentsong_looping){
 					// is this right?
-					printf("LOOP SONG!\n");
 					doing_loop = true;
 				} else {
-					finishplaying = 1;
+					if (loops_enabled){
+						doing_loop = true;
+					} else {
+						finishplaying = 1;
+					}
+				}
+				if (doing_loop){
+					printmessage("LOOPING SONG!\n");
 				}
 				break;
 			case 7:
@@ -447,7 +454,8 @@ int16_t main(int16_t argc, int8_t** argv) {
 	int8_t* filename;
 	FILE* fp;
 	uint16_t filesize;
-	int16_t userspecifieddriver;
+	int16_t param;
+	int16_t userspecifieddriver = 0;
 	myargc = argc;
 	myargv = argv;
 
@@ -457,9 +465,14 @@ int16_t main(int16_t argc, int8_t** argv) {
 		return 0;
 	}
 
-	userspecifieddriver = checkparm("-d");
-	if (userspecifieddriver){
-		userspecifieddriver = myargv[userspecifieddriver + 1][0] - '0';
+	param = checkparm("-d");
+	if (param){
+		userspecifieddriver = myargv[param + 1][0] - '0';
+	}
+
+	param = checkparm("-loop");
+	if (param){
+		loops_enabled = true;
 	}
 
 	fp  = fopen(filename, "rb");
