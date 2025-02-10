@@ -20,19 +20,12 @@
 #include <malloc.h>
 
 
-//#define showimplemented 1
 
 void donothing(){
 
 }
 
-//#define showimplemented 1
 
-#ifdef showimplemented
-	#define printf_implemented printf
-#else
-	#define printf_implemented(...) donothing
-#endif
 
 #define FREAD_BUFFER_SIZE 512
 
@@ -65,10 +58,12 @@ struct driverBlock	*playingdriver = &OPL2driver;
 
 
 // todo
-// dynamic load of num instruments
-// parse filename
-// parse sound engine choise
-// test sbmidi
+// x dynamic load of num instruments
+// 1. parse filename
+// 2. parse sound engine choice
+// 3. test sbmidi
+// 4. test looping
+// 5. locallib printf?
 // use playingstate
 
 uint16_t 			currentsong_looping;
@@ -81,7 +76,7 @@ uint16_t 			currentsong_num_instruments;       // 0-127
 
 uint16_t 			currentsong_play_timer;
 uint32_t 			currentsong_int_count;
-int32_t 			currentsong_ticks_to_process = 0;
+int16_t 			currentsong_ticks_to_process = 0;
 byte __far*  		muslocation;
 
 
@@ -94,6 +89,8 @@ volatile int16_t 	finishplaying = 0;
 OP2instrEntry 		AdLibInstrumentList[MAX_INSTRUMENTS_PER_TRACK];
 uint8_t 			instrumentlookup[MAX_INSTRUMENTS];
 
+int16_t 	myargc;
+int8_t**	myargv;
 
 int16_t MUS_Parseheader(byte __far *data){
     int16_t __far *  worddata = (int16_t __far *)data;
@@ -105,15 +102,15 @@ int16_t MUS_Parseheader(byte __far *data){
         currentsong_secondary_channels  = worddata[5];  // always 0??
         currentsong_num_instruments     = worddata[6];  // varies..  but 0-127
         // reserved   
-		printf("Parsed values: \n");
-		printf("length:             0x%x\n",currentsong_length);
-		printf("start offset:       0x%x\n",currentsong_start_offset);
-		printf("primary channels:   0x%x\n",currentsong_primary_channels);
-		printf("secondary channels: 0x%x\n",currentsong_secondary_channels);
-		printf("num instruments:    0x%x\n",currentsong_num_instruments);	// todo dynamically load the data from the main bank at startup to take less memory?
+		printmessage("Parsed values: \n");
+		printmessage("length:             0x%x\n",currentsong_length);
+		printmessage("start offset:       0x%x\n",currentsong_start_offset);
+		printmessage("primary channels:   0x%x\n",currentsong_primary_channels);
+		printmessage("secondary channels: 0x%x\n",currentsong_secondary_channels);
+		printmessage("num instruments:    0x%x\n",currentsong_num_instruments);	// todo dynamically load the data from the main bank at startup to take less memory?
 
 		if (currentsong_num_instruments > MAX_INSTRUMENTS_PER_TRACK){
-			printf("Too many instruments! %i vs max of %i", currentsong_num_instruments, MAX_INSTRUMENTS_PER_TRACK);
+			printerror("Too many instruments! %i vs max of %i", currentsong_num_instruments, MAX_INSTRUMENTS_PER_TRACK);
 		}
 
 		currentsong_playing_offset = currentsong_start_offset;
@@ -134,7 +131,7 @@ int16_t MUS_Parseheader(byte __far *data){
 
 		return 1; 
     } else {
-		printf("Bad header %x %x", worddata[0], worddata[1]);
+		printerror("Bad header %x %x", worddata[0], worddata[1]);
 		return - 1;
 	}
 
@@ -152,21 +149,19 @@ void MUS_ServiceRoutine(){
 
 
 	currentsong_ticks_to_process ++;
-	printf_implemented("INT CALLED (#%i) \n", currentsong_int_count);
-
+	
 	while (currentsong_ticks_to_process >= 0){
 
 		// ok lets actually process events....
-		int16_t increment = 1; // 1 for the event
-		byte doing_loop = false;
+		int16_t increment 			= 1; // 1 for the event
+		byte doing_loop 			= false;
 		byte __far* currentlocation = muslocation + currentsong_playing_offset;
-		uint8_t eventbyte = currentlocation[0];
-		uint8_t event     = (eventbyte & 0x70) >> 4;
-		int8_t  channel   = (eventbyte & 0x0F);
-		byte lastflag  = (eventbyte & 0x80);
-		uint32_t delay_amt = 0;
+		uint8_t eventbyte 			= currentlocation[0];
+		uint8_t event     			= (eventbyte & 0x70) >> 4;
+		int8_t  channel   			= (eventbyte & 0x0F);
+		byte lastflag  				= (eventbyte & 0x80);
+		int16_t_union delay_amt		= {0};
 
-		printf_implemented("%04x: %02x L: %hhi C: %hhi, EV: %hhi:\t", currentsong_playing_offset, eventbyte, (lastflag != 0), channel, event);
 
 		// // todo is this the right way...?
 		// if (channel > currentsong_primary_channels && channel < 10 && channel != PERCUSSION_CHANNEL){
@@ -184,10 +179,6 @@ void MUS_ServiceRoutine(){
 				{
 					byte value 			  = currentlocation[1];
 					byte key		  = value & 0x7F;
-
-					printf_implemented("release note 0x%hhx\n", key);
-
-					//OPLreleaseNote(channel, value);
 					playingdriver->releaseNote(channel, value);
 
 				}
@@ -203,14 +194,8 @@ void MUS_ServiceRoutine(){
 						volume = currentlocation[2] & 0x7F;
 						increment++;
 					}
-
-					printf_implemented("play note 0x%hhx\n", key);
-
-					// OPLplayNote(channel, key, volume);
 					playingdriver->playNote(channel, key, volume);
-
 					increment++;
-
 				}
 
 				break;
@@ -218,12 +203,7 @@ void MUS_ServiceRoutine(){
 				// Pitch Bend
 				{
 					byte value 			  = currentlocation[1];
-					// todo do we use a 2nd value for lsb/msb?
-					
-					printf_implemented("bend channel by 0x%hhx\n", value);
 					increment++;
-					//OPLpitchWheel(channel, value - 0x80);
-
 					playingdriver->pitchWheel(channel, value);
 
 				}
@@ -232,14 +212,7 @@ void MUS_ServiceRoutine(){
 				// System Event
 				{
 					byte controllernumber = currentlocation[1] & 0x7F;
-					//int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, 0);
-					//if (!result){
-					//	printf("A BAD SYSTEM EVENT?? 0x%hhx %0x\n", controllernumber, 0);
-					//}
-					//OPLchangeControl(channel, controllernumber, 0);
 					playingdriver->changeControl(channel, controllernumber, 0);
-									
-					printf_implemented("\n");
 					increment++;
 				}
 
@@ -248,17 +221,10 @@ void MUS_ServiceRoutine(){
 			case 4:
 				// Controller
 				{
-					uint8_t controllernumber = currentlocation[1]; // values above 127 used for instrument change & 0x7F;
-					uint8_t value 			  = currentlocation[2]; // values above 127 used for instrument change & 0x7F; ?
-					//int16_t result = MUS_ProcessControllerEvent(channel, controllernumber, value);
-					//if (!result){
-					//	printf("B BAD SYSTEM EVENT?? %hhx %hhx %hhx\n", eventbyte, value, controllernumber);
-					//}
-					//OPLchangeControl(channel, controllernumber, value);
-					playingdriver->changeControl(channel, controllernumber, value);
-					
-					printf_implemented("\n");
+					uint8_t controllernumber  = currentlocation[1] & 0x7F; // values above 127 used for instrument change & 0x7F;
+					uint8_t value 			  = currentlocation[2] & 0x7F; // values above 127 used for instrument change & 0x7F; ?
 
+					playingdriver->changeControl(channel, controllernumber, value);
 					increment++;
 					increment++;
 				}
@@ -271,7 +237,7 @@ void MUS_ServiceRoutine(){
 				break;
 			case 6:
 				// Finish
-				printf("\nSong over\n");
+				printmessage("\nSong over\n");
 				if (currentsong_looping){
 					// is this right?
 					printf("LOOP SONG!\n");
@@ -282,7 +248,7 @@ void MUS_ServiceRoutine(){
 				break;
 			case 7:
 				// Unused
-				printf_implemented("UNUSED EVENT 7?\n");
+				printmessage("UNUSED EVENT 7?\n");
 				increment++;   // advance for one data byte
 				break;
 		}
@@ -290,17 +256,18 @@ void MUS_ServiceRoutine(){
 		currentsong_playing_offset += increment;
 
 		while (lastflag){
+			// i dont think delays > 32768 are valid..
 			currentlocation = muslocation + currentsong_playing_offset;
-			delay_amt <<= 8;
+			delay_amt.bu.bytehigh = delay_amt.bu.bytelow;
+			delay_amt.bu.bytehigh >>= 1;	// shift 128.
 			lastflag = currentlocation[0];
-			delay_amt += (lastflag &0x7F);
+			delay_amt.bu.bytelow = (lastflag);
 
-			printf_implemented("  Read delay byte: 0x%x current delay: 0x%lx \n", lastflag, delay_amt);
 			lastflag &= 0x80;
 			currentsong_playing_offset++;
 		}
 		//printf("%li %li %hhx\n", currentsong_ticks_to_process, currentsong_ticks_to_process - delay_amt, eventbyte);
-		currentsong_ticks_to_process -= delay_amt;
+		currentsong_ticks_to_process -= delay_amt.hu;
 
 		//todo how to handle loop/end song plus last flag?
 		if (doing_loop){
@@ -313,47 +280,77 @@ void MUS_ServiceRoutine(){
 
 
 	}
-	printf_implemented("INT DONE (#%i) \n", currentsong_int_count);
 	called = 1;
 	currentsong_int_count++;
 	playingtime++;
 }
 
+#define driver_type_any 	0
+#define driver_type_opl2 	1
+#define driver_type_opl3    2
+#define driver_type_mpu401  3
+#define driver_type_sbmidi  4
+#define driver_type_none	5
 
+int8_t tryloaddrivertype(int8_t type){
+	switch (type){
+	
+		case driver_type_opl2:
+			if (OPL2detectHardware(ADLIBPORT, 0, 0)){
+				printmessage("OPL2 Detected...\n");
+				playingdriver = &OPL2driver;
+				playingdriver->initHardware(ADLIBPORT, 0, 0);
+				playingdriver->initDriver();
+				printmessage("OPL2 Enabled...\n");
+				return 1;
+			}
+			return 0;
+		case driver_type_opl3:
+
+			if (OPL3detectHardware(ADLIBPORT, 0, 0)){
+				playingdriver = &OPL3driver;
+				printmessage("OPL3 Detected...\n");
+				playingdriver->initHardware(ADLIBPORT, 0, 0);
+				playingdriver->initDriver();
+				printmessage("OPL3 Enabled...\n");
+				return 1;
+			} 
+			return 0;
+		case driver_type_mpu401:
+			if (MPU401detectHardware(MPU401PORT, 0, 0)){
+				playingdriver = &MPU401driver;
+				printmessage("MPU-401 Detected...\n");
+				playingdriver->initHardware(MPU401PORT, 0, 0);
+				playingdriver->initDriver();
+				printmessage("MPU-401 Enabled...\n");
+				return 1;
+			}
+			return 0;
+		case driver_type_sbmidi:
+			if (SBMIDIdetectHardware(MPU401PORT, 0, 0)){
+				printmessage("SB MIDI Detected...\n");
+				playingdriver = &SBMIDIdriver;
+				playingdriver->initHardware(MPU401PORT, 0, 0);
+				playingdriver->initDriver();
+				printmessage("SB MIDI Enabled...\n");
+				return 1;
+			}
+			return 0;
+
+	}
+	return 0;
+}
 
 int8_t attemptDetectingAnyHardware(){
-	
-	if (OPL3detectHardware(ADLIBPORT, 0, 0)){
-		playingdriver = &OPL3driver;
-		printf("OPL3 Detected...\n");
-		playingdriver->initHardware(ADLIBPORT, 0, 0);
-		playingdriver->initDriver();
-		printf("OPL3 Enabled...\n");
-	} else if (OPL2detectHardware(ADLIBPORT, 0, 0)){
-		printf("OPL2 Detected...\n");
-		playingdriver = &OPL2driver;
-		playingdriver->initHardware(ADLIBPORT, 0, 0);
-		playingdriver->initDriver();
-		printf("OPL2 Enabled...\n");
-	} else if (MPU401detectHardware(MPU401PORT, 0, 0)){
-		playingdriver = &MPU401driver;
-		printf("MPU-401 Detected...\n");
-		playingdriver->initHardware(MPU401PORT, 0, 0);
-		playingdriver->initDriver();
-		printf("MPU-401 Enabled...\n");
-	} else if (SBMIDIdetectHardware(MPU401PORT, 0, 0)){
-		printf("SB MIDI Detected...\n");
-		playingdriver = &SBMIDIdriver;
-		playingdriver->initHardware(MPU401PORT, 0, 0);
-		playingdriver->initDriver();
-		printf("SB MIDI Enabled...\n");
-
-
-	} else {
-		printf("ERROR! No SB sound hardware detected!\n");
-		return 0;
+	int8_t i = 1;
+	for (i = 1; i < driver_type_none; i++){
+		if (tryloaddrivertype(i)){
+			return 1;
+		}	
 	}
-	return 1;
+
+	printerror("ERROR! No SB sound hardware detected!\n");
+	return 0;
 }
 
 void sigint_catcher(int sig) {
@@ -365,12 +362,108 @@ void sigint_catcher(int sig) {
 	exit(sig);
 }
 
-int16_t main(void) {
 
+void locallib_strlwr(int8_t *str){
+	int16_t i = 0;
+	while (str[i] != '\0'){
+		if ((str[i] >= 'A') && (str[i] <= 'Z')){
+			str[i] += 32;
+		}
+		i++;
+	}
+}
+
+int16_t locallib_strcmp(int8_t *str1, int8_t *str2){
+	int16_t i = 0;
+	while (str1[i]){
+		int16_t b  = str1[i] - str2[i];
+		if (b){
+			return b;
+		}
+		i++;
+	}
+	return str1[i] - str2[i];
+}
+
+/*
+void locallib_strupr(int8_t  *str){
+	int i = 0;
+	while (str[i] != '\0'){
+		if ((str[i] >= 'a') && (str[i] <= 'z')){
+			str[i] -= 32;
+		}
+		i++;
+	}
+}
+*/
+
+uint8_t  locallib_toupper(uint8_t ch){
+	if (ch >=  0x61 && ch <= 0x7A){
+		return ch - 0x20;
+	}
+	return ch;
+}
+
+
+int16_t checkparm (int8_t *check) {
+    int16_t		i;
+	// ASSUMES *check is LOWERCASE. dont pass in uppercase!
+	// myargv must be tolower()
+	// trying to avoid strcasecmp dependency.
+    for (i = 1;i<myargc;i++) {
+		// technically this runs over and over for myargv, 
+		// but its during initialization so who cares speed-wise. 
+		// code is smaller to stick it here rather than make a loop elsewhere (i think)
+		locallib_strlwr(myargv[i]);
+		if ( !locallib_strcmp(check, myargv[i]) )
+			return i;
+		}
+
+    return 0;
+}
+
+int8_t* findfilenameparm(){
+	int16_t i;
+	for (i = 1;i<myargc;i++) {
+		int16_t j;
+		locallib_strlwr(myargv[i]);
+		for (j = 0; myargv[i][j] != '\0'; j++){ 
+			// find end 
+		}
+		j-=4;
+		if (( *((uint16_t *) &(myargv[i][j+0]))   == 0x6D2E) &&	//.m
+			  *((uint16_t *) &(myargv[i][j+2]))   == 0x7375	//us
+		){
+			return myargv[i];
+		}
+	}
+    return 0;
+}
+
+
+
+int16_t main(int16_t argc, int8_t** argv) {
 	int16_t result;
-	int8_t filename[13] = "D_RUNNI2.MUS";
-	FILE* fp = fopen(filename, "rb");
+	int8_t* filename;
+	FILE* fp;
 	uint16_t filesize;
+	int16_t userspecifieddriver;
+	myargc = argc;
+	myargv = argv;
+
+	filename = findfilenameparm();
+	if (!filename){
+		printerror("Couldn't fimd MUS file parameter!");
+		return 0;
+	}
+
+	userspecifieddriver = checkparm("-d");
+	if (userspecifieddriver){
+		userspecifieddriver = myargv[userspecifieddriver + 1][0] - '0';
+	}
+
+	fp  = fopen(filename, "rb");
+
 	if (fp){
 		fseek(fp, 0, SEEK_END);
 		filesize = ftell(fp);
@@ -378,7 +471,7 @@ int16_t main(void) {
 		// where we're going, we don't need DOS's permission...
 		muslocation = _fmalloc(filesize);
 		if (!muslocation){
-			printf("Couldn't malloc %u bytes", filesize);
+			printerror("Couldn't malloc %u bytes", filesize);
 			return 0;
 		}
 
@@ -386,7 +479,7 @@ int16_t main(void) {
 		fclose(fp);
 		
 		result = MUS_Parseheader(muslocation);
-		printf("Loaded %s into memory location 0x%lx successfully...\n", filename, muslocation);
+		printmessage("Loaded %s into memory location 0x%lx successfully...\n", filename, muslocation);
 
 		// todo only if OPL?
 
@@ -398,42 +491,49 @@ int16_t main(void) {
 				uint8_t instrumentindex = instrumentlookup[i];
 				if (instrumentindex != 0xFF){
 					uint16_t offset = sizeof(OP2instrEntry) * i;
-					//printf("Instr index/nmbr/offset %i %i %x\n", instrumentindex, i, offset);
+
 					fseek(fp, offset, SEEK_SET);
 					far_fread(&AdLibInstrumentList[instrumentindex], sizeof(OP2instrEntry), 1, fp);
 				}
 			}
-			printf("Read instrument data!\n");
+			printmessage("Read instrument data!\n");
 			fclose(fp);
 		} else {
-			printf("Error reading genmidi.lmp!\n");
+			printerror("Error reading genmidi.lmp!\n");
 			_ffree(muslocation);
 			return 0;
 		}
 
 
-		printf("Enabling Sound...\n");
+		printmessage("Enabling Sound...\n");
 
-		if (!attemptDetectingAnyHardware()){
-			_ffree(muslocation);
-			return 0;
+		if (userspecifieddriver){
+			if (!tryloaddrivertype(userspecifieddriver)){
+				printerror("Could not find that driver!\n");
+				_ffree(muslocation);
+				return 0;
+			}
+		} else {
+			if (!attemptDetectingAnyHardware()){
+				_ffree(muslocation);
+				return 0;
+			}
 		}
 
-
-		printf("Driver song setup...\n");
+		printmessage("Driver song setup...\n");
 		playingdriver->stopMusic();
 		playingdriver->playMusic();
 
-		printf("Scheduling interrupt\n");
+		printmessage("Scheduling interrupt\n");
 		signal(SIGINT, sigint_catcher);
 
 		TS_Startup();
 		TS_ScheduleTask(MUS_ServiceRoutine, MUS_INTERRUPT_RATE);
 		TS_Dispatch();
 		
-		printf("Interrupt scheduled at %i interrupts per second\n", MUS_INTERRUPT_RATE);
+		printmessage("Interrupt scheduled at %i interrupts per second\n", MUS_INTERRUPT_RATE);
 
-		printf("Now looping until ESC keypress\n");
+		printmessage("Now looping until ESC keypress\n");
 
 		while (true){
 			if (_bios_keybrd(_KEYBRD_READY)){
@@ -442,7 +542,7 @@ int16_t main(void) {
 					break;
 				}
 			    if (key & 0xFF00){		/* if not extended key */
-					switch (toupper(key & 0x00FF)) {
+					switch (locallib_toupper(key & 0x00FF)) {
 						case '=':
 						case '+':		/* '+' - increase volume */
 							if (playingvolume <= 512-4 ){
@@ -490,25 +590,25 @@ int16_t main(void) {
 		}
 
 		if (finishplaying){
-			printf("\nSong Finished, shutting down interrupt...\n");
+			printmessage("\nSong Finished, shutting down interrupt...\n");
 		} else {
-			printf("\nDetected ESC keypress, shutting down interrupt...\n");
+			printmessage("\nDetected ESC keypress, shutting down interrupt...\n");
 		}
 
 		TS_Shutdown();
-		printf("Shut down interrupt, flushing sound hardware...\n");
+		printmessage("Shut down interrupt, flushing sound hardware...\n");
 
 
 		playingdriver->stopMusic();
 		playingdriver->deinitHardware();
 
-		printf("Sound hardware state cleared, freeing memory...\n");
+		printmessage("Sound hardware state cleared, freeing memory...\n");
 
 		_ffree(muslocation);
-		printf("Exiting program...\n");
+		printmessage("Exiting program...\n");
 
 	} else {
-		printf("Error: Could not find %s", filename);
+		printerror("Error: Could not find %s", filename);
 	}
 
 	return 0;

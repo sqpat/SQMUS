@@ -146,4 +146,45 @@ extern int16_t playingvolume;
 
 extern	volatile uint32_t	playingtime;
 
+extern void donothing();
+
+//#define showmessages 1
+
+#ifdef showmessages
+	#define printmessage printf
+#else
+	#define printmessage(...) donothing
+#endif
+
+#define showerrors 1
+
+#ifdef showerrors
+	#define printerror printf
+#else
+	#define printerror(...) donothing
+#endif
+
+// get quotient and remainder/modulo
+inline int16_t_union FastDiv16u_8u(uint16_t ax, uint8_t dl);
+#pragma aux FastDiv16u_8u =   \
+"div dl"  \
+    parm [ax] [dl]       \
+    modify [ah al]   \
+    value [ax];
+
+inline uint32_t FastMul16u16u(uint16_t a, uint16_t b);
+#pragma aux FastMul16u16u =   \
+"MUL DX"  \
+    parm [ax] [dx]       \
+    modify [ax dx]   \
+    value [dx ax];
+
+inline uint16_t FastMul8u8u(uint8_t a, uint8_t b);
+#pragma aux FastMul8u8u =   \
+"MUL ah"  \
+    parm [al] [ah]       \
+    modify [ah al]   \
+    value [ax];
+
+
 #endif

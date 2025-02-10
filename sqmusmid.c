@@ -44,11 +44,14 @@ uint16_t percussMask;
 \
 /* calculate MIDI channel volume */
 int8_t calcVolume(uint16_t MUSvolume, uint8_t noteVolume){
-    noteVolume = ((uint32_t)MUSvolume * noteVolume) >> 8;
-    if (noteVolume > 127){
+    fixed_t_union result;
+    result.wu = FastMul16u16u (MUSvolume, noteVolume);
+    
+    // instead of shift 8 use fracbyte high
+    if (result.bu.fracbytehigh > 127){
 	    return 127;
     } else {
-	    return noteVolume;
+	    return result.bu.fracbytehigh;
     }
 }
 /*
@@ -63,7 +66,7 @@ void stopChannel(uint8_t MIDIchannel){
     SENDMIDI(MIDIchannel, MIDI_CONTROL, 121, 127); /* reset all controllers */
 }
 
-/* find free MIDI output channel */
+// find free MIDI output channel
 int8_t findFreeMIDIChannel(uint8_t channel){
     uint8_t i, oldest;
     uint32_t time;
@@ -72,7 +75,7 @@ int8_t findFreeMIDIChannel(uint8_t channel){
 	    return MIDI_PERC;
     }
 
-    /* find unused MIDI i */
+    // find unused MIDI channel
     for (i = 0; i < CHANNELS; i++){
         if (MIDIchannels[i] == 0xFF) {
             MIDIchannels[i] = channel;
@@ -80,7 +83,7 @@ int8_t findFreeMIDIChannel(uint8_t channel){
         }
     }
 
-    /* find the longest time untouched i */
+    // find LRU
     time = playingtime;
     oldest = 0xFF;
 
@@ -104,7 +107,7 @@ int8_t findFreeMIDIChannel(uint8_t channel){
 
 
 
-/* send all tracked controller values to the MIDI output */
+// send all tracked controller values to the MIDI output
 void updateControllers(uint8_t channel){
     uint8_t i, value;
     struct MIDIdata *data = &mididriverData;
@@ -135,7 +138,7 @@ void updateControllers(uint8_t channel){
     }
 }
 
-/* send system volume */
+// send system volume
 void sendSystemVolume(int16_t systemVolume){
     struct MIDIdata *data = &mididriverData;
     int8_t i;
@@ -172,9 +175,12 @@ void MIDIplayNote(uint8_t channel, uint8_t note, int8_t volume){
     }
 
     if (MIDIchannel == MIDI_PERC) {
+        int16_t_union intermediate;
+        intermediate.hu = FastMul8u8u(playingvolume, data->controllers[ctrlVolume][channel]);
         data->percussions[note >> 3] |= (1 << (note & 7));
-        volume = (calcVolume(playingvolume, data->controllers[ctrlVolume]
-                        [channel]) * volume) / 127;
+        intermediate.hu = FastMul8u8u(calcVolume(playingvolume, intermediate.hu), volume);
+        intermediate = FastDiv16u_8u(intermediate.hu, 127);
+        volume = intermediate.bu.bytelow;
     }
 
     TOUCH(MIDIchannel);

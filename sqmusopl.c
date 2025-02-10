@@ -69,11 +69,6 @@ uint8_t _OPL3writeReg(uint16_t port, uint16_t reg, uint8_t data);
 	value [AH];
 
 uint8_t OPLwriteReg(uint16_t reg, uint8_t data){
-	// FILE* fp = fopen ("log1.txt", "ab");
-	//  fprintf(fp, "outp %03x, %02x outp %03x, %02x\n", OPLport, reg, OPLport+1, data);
-	// fclose(fp);
-
-
     if (OPL3mode){
 		return _OPL3writeReg(OPLport, reg, data);
 	} else{
@@ -139,27 +134,6 @@ int8_t noteVolumetable[128] = {
 	124, 124, 125, 125, 126, 126, 127, 127};
 
 
-// get quotient and remainder/modulo
-inline int16_t_union FastDiv16u_8u(uint16_t ax, uint8_t dl);
-#pragma aux FastDiv16u_8u =   \
-"div dl"  \
-    parm [ax] [dl]       \
-    modify [ah al]   \
-    value [ax];
-
-inline uint32_t FastMul16u16u(uint16_t a, uint16_t b);
-#pragma aux FastMul16u16u =   \
-"MUL DX"  \
-    parm [ax] [dx]       \
-    modify [ax dx]   \
-    value [dx ax];
-
-inline uint16_t FastMul8u8u(uint8_t a, uint8_t b);
-#pragma aux FastMul8u8u =   \
-"MUL ah"  \
-    parm [al] [ah]       \
-    modify [ah al]   \
-    value [ax];
 
 
 
@@ -453,16 +427,8 @@ uint16_t pitchwheeltable[] = {				    /* pitch wheel */
 
 
 void writeFrequency(uint8_t slot, uint8_t note, uint8_t pitchwheel, uint8_t keyOn){
-    // todo div 12 or w/e
 	uint16_t freq;
     uint8_t octave;
-/*
-	int16_t i;
-	for (i = 0; i < 255; i++){
-			printf("%i  ", pitchwheeltable[i+1] - pitchwheeltable[i]);
-	}
-	exit(0);
-	*/
 
 	if (note < 7){
 		freq = freqtable[note];
@@ -474,7 +440,10 @@ void writeFrequency(uint8_t slot, uint8_t note, uint8_t pitchwheel, uint8_t keyO
 	}
 
     if (pitchwheel!= DEFAULT_PITCH_BEND) {
-		freq = ((uint32_t)freq * pitchwheeltable[pitchwheel + 128]) >> 15;
+		fixed_t_union product;
+		product.wu = FastMul16u16u(freq, pitchwheeltable[pitchwheel + 128]);
+		// need to shift 15 right... or instead:
+		freq = product.hu.intbits << 1;
 		if (freq >= 1024) {
 			freq >>= 1;
 			octave++;
@@ -622,12 +591,10 @@ int8_t findFreeChannel(uint8_t flag){
 
     /* find free channel */
     for(i = 0; i < OPLchannels; i++) {
-		//printf ("check %i ", i);
 		if (++last == OPLchannels){	/* use cyclic `Next Fit' algorithm */
 			last = 0;
 		}
 		if (channels[last].flags & CH_FREE){
-		//printf("return a %i", last);
 			return last;
 		}
     }
@@ -674,7 +641,7 @@ OP2instrEntry *getInstrument(uint8_t channel, uint8_t note) {
 	instrindex = instrumentlookup[instrnumber];
 
 	if (instrindex == 0xFF){
-		printf("Bad instrument index %i %i!!\n", instrnumber, instrindex);
+		printerror("Bad instrument index %i %i!!\n", instrnumber, instrindex);
 		return NULL;
 	}
 	return &AdLibInstrumentList[instrindex];
@@ -687,7 +654,7 @@ void OPLplayNote(uint8_t channel, uint8_t note, int8_t noteVolume){
     OP2instrEntry *instr = getInstrument(channel, note);
 
     if (instr == NULL){
-		//printf( "null instrument? %i %i\n", channel, note);
+		printerror( "null instrument? %i %i\n", channel, note);
 		return;
 	}
 
@@ -700,7 +667,7 @@ void OPLplayNote(uint8_t channel, uint8_t note, int8_t noteVolume){
 			}
 		}
     } else {
-		printf("no voice found!\n");
+		printmessage("no voice found!\n");
 	}
 }
 
