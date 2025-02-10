@@ -45,13 +45,15 @@ uint16_t percussMask;
 /* calculate MIDI channel volume */
 int8_t calcVolume(uint16_t MUSvolume, uint8_t noteVolume){
     fixed_t_union result;
-    result.wu = FastMul16u16u (MUSvolume, noteVolume);
+    result.wu = FastMul16u16u (MUSvolume, (uint16_t)noteVolume);
     
     // instead of shift 8 use fracbyte high
-    if (result.bu.fracbytehigh > 127){
+    result.bu.fracbytelow = result.bu.fracbytehigh;
+    result.bu.fracbytehigh = result.bu.intbytelow;
+    if (result.hu.fracbits > 127){
 	    return 127;
     } else {
-	    return result.bu.fracbytehigh;
+	    return result.bu.fracbytelow;
     }
 }
 /*
@@ -176,9 +178,10 @@ void MIDIplayNote(uint8_t channel, uint8_t note, int8_t volume){
 
     if (MIDIchannel == MIDI_PERC) {
         int16_t_union intermediate;
-        intermediate.hu = FastMul8u8u(playingvolume, data->controllers[ctrlVolume][channel]);
+        //intermediate.hu = FastMul8u8u(playingvolume, );
         data->percussions[note >> 3] |= (1 << (note & 7));
-        intermediate.hu = FastMul8u8u(calcVolume(playingvolume, intermediate.hu), volume);
+        intermediate.hu = FastMul8u8u(calcVolume(playingvolume, data->controllers[ctrlVolume][channel]), volume);
+
         intermediate = FastDiv16u_8u(intermediate.hu, 127);
         volume = intermediate.bu.bytelow;
     }
