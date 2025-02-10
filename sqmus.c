@@ -334,10 +334,10 @@ int8_t tryloaddrivertype(int8_t type){
 			}
 			return 0;
 		case driver_type_sbmidi:
-			if (SBMIDIdetectHardware(MPU401PORT, 0, 0)){
+			if (SBMIDIdetectHardware(SBMIDIPORT, 0, 0)){
 				printmessage("SB MIDI Detected...\n");
 				playingdriver = &SBMIDIdriver;
-				playingdriver->initHardware(MPU401PORT, 0, 0);
+				playingdriver->initHardware(SBMIDIPORT, 0, 0);
 				playingdriver->initDriver();
 				printmessage("SB MIDI Enabled...\n");
 				return 1;
