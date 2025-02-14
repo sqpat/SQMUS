@@ -2,6 +2,7 @@
 #include <mem.h>
 #include "sqcommon.h"
 #include "sqmusmid.h"
+#include <stdio.h>
 
 /* MUS -> MIDI controller number conversion */
 const uint8_t MUS2MIDIctrl[] = {	/* MUS controller: */

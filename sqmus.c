@@ -54,7 +54,6 @@ void  far_fread(void __far* dest, uint16_t elementsize, uint16_t elementcount, F
 
 
 
-struct driverBlock	*playingdriver = &OPL2driver;
 
 
 // todo
@@ -65,6 +64,7 @@ struct driverBlock	*playingdriver = &OPL2driver;
 // x. test looping
 // n locallib printf?
 // use playingstate
+struct driverBlock	*playingdriver = &OPL2driver;
 
 uint16_t 			currentsong_looping;
 uint16_t 			currentsong_start_offset;
@@ -150,7 +150,6 @@ void MUS_ServiceRoutine(){
 
 
 	currentsong_ticks_to_process ++;
-	
 	while (currentsong_ticks_to_process >= 0){
 
 		// ok lets actually process events....
@@ -265,15 +264,15 @@ void MUS_ServiceRoutine(){
 		while (lastflag){
 			// i dont think delays > 32768 are valid..
 			currentlocation = muslocation + currentsong_playing_offset;
-			delay_amt.bu.bytehigh = delay_amt.bu.bytelow;
-			delay_amt.bu.bytehigh >>= 1;	// shift 128.
-			lastflag = currentlocation[0];
-			delay_amt.bu.bytelow = (lastflag);
+			delay_amt.hu <<= 7;
+			//delay_amt.bu.bytehigh >>= 1;	// shift 128.
+			lastflag = currentlocation[0] ;
+			delay_amt.bu.bytelow += (lastflag & 0x7F);
 
 			lastflag &= 0x80;
 			currentsong_playing_offset++;
 		}
-		//printf("%li %li %hhx\n", currentsong_ticks_to_process, currentsong_ticks_to_process - delay_amt, eventbyte);
+		//printf("%i %i %hhx\n", currentsong_ticks_to_process, currentsong_ticks_to_process - delay_amt.hu, delay_amt.hu);
 		currentsong_ticks_to_process -= delay_amt.hu;
 
 		//todo how to handle loop/end song plus last flag?
@@ -461,7 +460,7 @@ int16_t main(int16_t argc, int8_t** argv) {
 
 	filename = findfilenameparm();
 	if (!filename){
-		printerror("Couldn't fimd MUS file parameter!");
+		printerror("Couldn't find MUS file parameter!");
 		return 0;
 	}
 
