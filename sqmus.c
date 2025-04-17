@@ -555,10 +555,10 @@ int8_t* findfilenameparm(){
  
 
 
-#define SB_DSP_Set_DA_Rate 0x41
-#define SB_DSP_Set_AD_Rate 0x42
+#define SB_DSP_Set_DA_Rate   0x41
+#define SB_DSP_Set_AD_Rate   0x42
 
-#define SB_Ready 0xAA
+#define SB_Ready 			 0xAA
 
 #define SB_MixerAddressPort  0x4
 #define SB_MixerDataPort 	 0x5
@@ -572,10 +572,10 @@ int8_t* findfilenameparm(){
 //todo! configure these!
 #define UNDEFINED_DMA -1
 
-#define FIXED_SB_PORT 0x220
-#define FIXED_SB_DMA_8 1
-#define FIXED_SB_DMA_16 UNDEFINED_DMA
-#define FIXED_SB_IRQ 7
+#define FIXED_SB_PORT   0x220
+#define FIXED_SB_DMA_8  1
+#define FIXED_SB_DMA_16 6
+#define FIXED_SB_IRQ    7
 
 #define SB_STEREO 1
 #define SB_SIXTEEN_BIT 2
@@ -585,20 +585,24 @@ int8_t* findfilenameparm(){
 // todo: set from environment variable.
 int16_t sb_port = -1;
 int16_t sb_dma  = -1;
-int16_t sb_int  = -1;
 int16_t sb_irq  = -1;
 
 int8_t sb_dma_16 = UNDEFINED_DMA;
 int8_t sb_dma_8  = UNDEFINED_DMA;
 
-
 void( __interrupt __far *SB_OldInt)(void);
-char __far* SB_DMABuffer;
-char __far* SB_DMABufferEnd;
-char __far* SB_CurrentDMABuffer;
+byte __far* SB_DMABuffer;
+byte __far* SB_DMABufferEnd;
+byte __far* SB_CurrentDMABuffer;
 uint16_t 	SB_TotalDMABufferSize;
 
-uint16_t SB_MixMode = SB_STEREO;  // | SB_SIXTEEN_BIT;
+uint16_t SB_MixMode = SB_STEREO;
+// uint16_t SB_MixMode = SB_STEREO | SB_SIXTEEN_BIT;
+
+uint16_t sfx_length = 0;
+int8_t 	 sfx_playing = false;
+
+//uint16_t SB_MixMode = SB_STEREO
 
 uint8_t SB_Mixer_Status;
 
@@ -609,20 +613,23 @@ byte __far* SB_BUFFERS[2] = {
 };
 
 // todo what does this mean
-#define MixBufferSize 256
-
-#define NumberOfBuffers 16
-#define TotalBufferSize (MixBufferSize * NumberOfBuffers)
+#define MixBufferSize    256
+#define NumberOfBuffers  16
+#define TotalBufferSize  (MixBufferSize * NumberOfBuffers)
 
 #define SB_TransferLength MixBufferSize
 
 
-#define MIXER_MPU401_INT 0x4
-#define MIXER_16BITDMA_INT 0x2
-#define MIXER_8BITDMA_INT 0x1
-
+#define MIXER_MPU401_INT   0x04
+#define MIXER_16BITDMA_INT 0x02
+#define MIXER_8BITDMA_INT  0x01
 
 void __interrupt __far SB_ServiceInterrupt(void) {
+	printf("\nINT CALLED");
+
+	if (!sfx_playing){
+		return;
+	}
 
     // Acknowledge interrupt
     // Check if this is this an SB16 or newer
@@ -630,7 +637,7 @@ void __interrupt __far SB_ServiceInterrupt(void) {
         outp(sb_port + SB_MixerAddressPort, 0x82);  //  MIXER_DSP4xxISR_Ack);
 
         SB_Mixer_Status = inp(sb_port + SB_MixerDataPort);
-
+		printf("\nmixer status %i %i", sb_port, SB_Mixer_Status);
         // Check if a 16-bit DMA interrupt occurred
         if (SB_Mixer_Status & MIXER_16BITDMA_INT) {
             // Acknowledge 16-bit transfer interrupt
@@ -651,10 +658,16 @@ void __interrupt __far SB_ServiceInterrupt(void) {
     // }
 
     // Keep track of current buffer
-    SB_CurrentDMABuffer += SB_TransferLength;
+	printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
+    SB_CurrentDMABuffer += SB_TransferLength/2;
+	if (SB_CurrentDMABuffer >= (SB_DMABuffer + sfx_length)){
+		// sound done playing. 
+		 sfx_playing = false;
+		 SB_CurrentDMABuffer = SB_DMABuffer;
+	} 
 
     if (SB_CurrentDMABuffer >= SB_DMABufferEnd) {
-        SB_CurrentDMABuffer = SB_DMABuffer;
+        // SB_CurrentDMABuffer = SB_DMABuffer;
     }
 
     // Continue playback on cards without autoinit mode
@@ -817,38 +830,38 @@ uint16_t SB_HaltTransferCommand;
 
 
 void SB_DSP4xx_BeginPlayback() {
-    int8_t TransferCommand;
-    int8_t TransferMode;
-    int16_t SampleLength = MixBufferSize;
+    int8_t transfer_command;
+    int8_t transfer_mode;
+    uint16_t sample_length = MixBufferSize;
 
     if (SB_MixMode & SB_SIXTEEN_BIT) {
-        TransferCommand = 0xB6; // 16 bit DAC
-        SampleLength >>= 1;
+        transfer_command = 0xB6; // 16 bit DAC
+        sample_length >>= 1;
         SB_HaltTransferCommand = SB_DSP_Halt16bitTransfer;
         if (SB_MixMode & SB_STEREO) {
-            TransferMode = SB_DSP_SignedStereoData;
+            transfer_mode = SB_DSP_SignedStereoData;
         } else {
-            TransferMode = SB_DSP_SignedMonoData;
+            transfer_mode = SB_DSP_SignedMonoData;
         }
     } else {
-        TransferCommand = 0xC6; // 8 bit dac
+        transfer_command = 0xC6; // 8 bit dac
         
         SB_HaltTransferCommand = SB_DSP_Halt8bitTransfer;
         if (SB_MixMode & SB_STEREO) {
-            TransferMode = SB_DSP_UnsignedStereoData;
+            transfer_mode = SB_DSP_UnsignedStereoData;
         } else {
-            TransferMode = SB_DSP_UnsignedMonoData;
+            transfer_mode = SB_DSP_UnsignedMonoData;
         }
     }
 
-	SampleLength--;
+	sample_length--;
 
 
     // Program DSP to play sound
-    SB_WriteDSP(TransferCommand);
-    SB_WriteDSP(TransferMode);
-    SB_WriteDSP(SampleLength&0xFF);
-    SB_WriteDSP(SampleLength>>8);
+    SB_WriteDSP(transfer_command);
+    SB_WriteDSP(transfer_mode);
+    SB_WriteDSP(sample_length&0xFF);
+    SB_WriteDSP(sample_length>>8);
 
 
 }
@@ -995,10 +1008,10 @@ int8_t SB_SetupDMABuffer( byte __far *buffer, uint16_t buffer_size) {
 
     sb_dma = dma_channel;
 
-    SB_DMABuffer = buffer;
-    SB_CurrentDMABuffer = buffer;
-    SB_TotalDMABufferSize = buffer_size;
-    SB_DMABufferEnd = buffer + buffer_size;
+    SB_DMABuffer 			= buffer;
+    SB_CurrentDMABuffer 	= buffer;
+    SB_TotalDMABufferSize 	= buffer_size;
+    SB_DMABufferEnd 		= buffer + buffer_size;
 
     return SB_OK;
 }
@@ -1006,16 +1019,14 @@ int8_t SB_SetupDMABuffer( byte __far *buffer, uint16_t buffer_size) {
 
 
 void SB_EnableInterrupt() {
-    uint8_t irq;
     uint8_t mask;
 
     // Unmask system interrupt
-    irq = sb_irq;
-    if (irq < 8) {
-        mask = inp(0x21) & ~(1 << irq);
+    if (sb_irq < 8) {
+        mask = inp(0x21) & ~(1 << sb_irq);
         outp(0x21, mask);
     } else {
-        mask = inp(0xA1) & ~(1 << (irq - 8));
+        mask = inp(0xA1) & ~(1 << (sb_irq - 8));
         outp(0xA1, mask);
 
         mask = inp(0x21) & ~(1 << 2);
@@ -1025,7 +1036,7 @@ void SB_EnableInterrupt() {
 
 
 int8_t SB_SetupPlayback(){
-    uint16_t sample_rate = 11025;
+    uint16_t sample_rate = 11000;
 	uint16_t buffer_size = TotalBufferSize;
 	SB_StopPlayback();
     SB_SetMixMode();
@@ -1061,14 +1072,14 @@ int8_t SB_SetupPlayback(){
 
 
 int16_t SB_InitCard(){
-    uint16_t sample_rate = 11025;
+    uint16_t sample_rate = 11000;
 	int8_t status;
-
+	uint16_t sb_int;
 	//todo get these from environment variables
-	sb_irq  = FIXED_SB_IRQ;
-	sb_dma_8  = FIXED_SB_DMA_8;
-	sb_dma_16  = FIXED_SB_DMA_16;
-	sb_port = FIXED_SB_PORT;
+	sb_irq      = FIXED_SB_IRQ;
+	sb_dma_8    = FIXED_SB_DMA_8;
+	sb_dma_16   = FIXED_SB_DMA_16;
+	sb_port 	= FIXED_SB_PORT;
     // Save the interrupt masks
     SB_IntController1Mask = inp(0x21);
     SB_IntController2Mask = inp(0xA1);
@@ -1114,7 +1125,7 @@ int16_t SB_InitCard(){
         SB_OldInt = _dos_getvect(sb_int);
         if (sb_irq < 8) {
 			// 8 bit logic?
-			printf("\n\nSet the interrupt!\n\n");
+			// printf("\n\nSet the interrupt %i %i %lx!\n\n", sb_int, sb_irq, SB_OldInt);
             _dos_setvect(sb_int, SB_ServiceInterrupt);
         } else {
 			// 16 bit logic?
@@ -1140,6 +1151,7 @@ int16_t main(int16_t argc, int8_t** argv) {
 	int16_t result;
 	int8_t* filename;
 	int8_t* sfxfilename = "DSBDOPN.lmp";
+	// int8_t* sfxfilename = "DSBAREXP.lmp";
 	// int8_t* pcsfxfilename = "DPBDCLS.lmp";
 	//int8_t* pcsfxfilename = "DPBDOPN.lmp";
 	int8_t* pcsfxfilename = "DPITEMUP.lmp";
@@ -1191,6 +1203,7 @@ int16_t main(int16_t argc, int8_t** argv) {
 			uint16_t sfxfilesize;
 			fseek(fp, 0, SEEK_END);
 			sfxfilesize = ftell(fp);
+			sfx_length = sfxfilesize;
 			fseek(fp, 0, SEEK_SET);
 			sfxlocation = (byte __far*) SB_BUFFERS[0];
 
@@ -1207,9 +1220,8 @@ int16_t main(int16_t argc, int8_t** argv) {
 			playingpcmsfx = true;
 
 			if (SB_InitCard() == SB_OK){
-				printf("\\nSB nINIT OK!!!\n");
 				if (SB_SetupPlayback() == SB_OK){
-					printf("\\nSB PLAYBACK OK!!!\n");
+					sfx_playing = true;
 
 				} else {
 					printf("Error B\n");
