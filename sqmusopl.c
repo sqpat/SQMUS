@@ -68,7 +68,14 @@ uint8_t _OPL3writeReg(uint16_t port, uint16_t reg, uint8_t data);
 	modify exact [AX DX] nomemory	\
 	value [AH];
 
+// void printerfunc(uint16_t reg, uint8_t data){
+//     FILE* fp = fopen("outp.txt", "ab");
+//     fprintf(fp,"%04x %02x\n", reg, data);
+//     fclose(fp);
+// }
+
 uint8_t OPLwriteReg(uint16_t reg, uint8_t data){
+	// printerfunc(reg, data);
     if (OPL3mode){
 		return _OPL3writeReg(OPLport, reg, data);
 	} else{
@@ -651,6 +658,9 @@ int8_t findFreeChannel(uint8_t flag){
     return -1;
 }
 
+extern 	int16_t opl_valid_instruments;
+
+
 OP2instrEntry *getInstrument(uint8_t channel, uint8_t note) {
     uint8_t instrnumber;
     uint8_t instrindex;
@@ -663,6 +673,15 @@ OP2instrEntry *getInstrument(uint8_t channel, uint8_t note) {
     } else { 
 		instrnumber = OPL2driverdata.channelInstr[channel];
 	}
+
+	if (instrnumber > 174){
+		printmessage("\nBad OPL instrument %i!", instrnumber);
+		return NULL;
+	} else {
+		// printmessage("\nPlaying %03i %03i!", instrumentlookup[instrnumber], instrnumber);
+
+	}
+
 	instrindex = instrumentlookup[instrnumber];
 
 	if (instrindex == 0xFF){
@@ -741,6 +760,7 @@ void OPLchangeControl(uint8_t channel, uint8_t controller, uint8_t value){
     switch (controller) {
 		case 0:			/* change instrument */
 			OPL2driverdata.channelInstr[channel] = value;
+			// printf("\nchange instrument %i %i", channel, value);
 			break;
 		case 2:
 			OPL2driverdata.channelModulation[channel] = value;
