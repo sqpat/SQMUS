@@ -609,7 +609,14 @@ byte __far* SB_DMABufferEnd;
 byte __far* SB_CurrentDMABuffer;
 uint16_t 	SB_TotalDMABufferSize;
 
+#define SB_DSP_Version1xx 0x0100
+#define SB_DSP_Version2xx 0x0200
+#define SB_DSP_Version201 0x0201
+#define SB_DSP_Version3xx 0x0300
+#define SB_DSP_Version4xx 0x0400
 
+
+int16_t_union SB_DSP_Version;
 uint8_t SB_MixerType = SB_TYPE_NONE;
 uint8_t SB_OriginalMidiVolumeLeft = 255;
 uint8_t SB_OriginalMidiVolumeRight = 255;
@@ -624,7 +631,6 @@ uint16_t SB_MixMode = SB_STEREO;
 uint16_t sfx_length = 0;
 int8_t 	 sfx_playing = false;
 
-//uint16_t SB_MixMode = SB_STEREO
 
 uint8_t SB_Mixer_Status;
 
@@ -647,11 +653,12 @@ byte __far* SB_BUFFERS[2] = {
 #define MIXER_8BITDMA_INT  0x01
 
 void __interrupt __far SB_ServiceInterrupt(void) {
-	//printf("\nINT CALLED");
+	printf("\nINT CALLED");
 
 	if (!sfx_playing){
 		return;
 	}
+	printf(" and playing %lx", SB_CurrentDMABuffer);
 
     // Acknowledge interrupt
     // Check if this is this an SB16 or newer
@@ -749,7 +756,7 @@ void SB_WriteDSP(byte value)
     }
 }
 
-int16_t SB_ReadDSP(void) {
+uint8_t SB_ReadDSP() {
     int16_t port = sb_port + SB_DataAvailablePort;
     uint16_t count;
 
@@ -1196,11 +1203,30 @@ int8_t IRQ_RestoreVector(int8_t vector) {
 #define SB_MIXER_SB16MidiLeft 0x34
 #define SB_MIXER_SB16MidiRight 0x35
 
+
+uint8_t SB_ReadMixer(uint8_t reg) {
+    outp(sb_port + SB_MixerAddressPort, reg);
+    return inp(sb_port + SB_MixerDataPort);
+}
+
 void SB_WriteMixer(uint8_t reg,uint8_t data) {
     outp(sb_port + SB_MixerAddressPort, reg);
     outp(sb_port + SB_MixerDataPort, data);
 }
 
+void SB_SaveVoiceVolume() {
+    switch (SB_MixerType) {
+		case SB_TYPE_SBPro:
+		case SB_TYPE_SBPro2:
+			SB_OriginalVoiceVolumeLeft  = SB_ReadMixer(SB_MIXER_SBProVoice);
+			break;
+
+		case SB_TYPE_SB16:
+			SB_OriginalVoiceVolumeLeft  = SB_ReadMixer(SB_MIXER_SB16VoiceLeft);
+			SB_OriginalVoiceVolumeRight = SB_ReadMixer(SB_MIXER_SB16VoiceRight);
+			break;
+		}
+}
 
 void SB_RestoreVoiceVolume() {
     switch (SB_MixerType) {
@@ -1217,27 +1243,69 @@ void SB_RestoreVoiceVolume() {
 }
 
 void SB_Shutdown(){
+    sfx_playing = false;
 
 	SB_StopPlayback();
 
     SB_RestoreVoiceVolume();
     SB_ResetDSP();
 
-    // Restore the original interrupt
-		
-    
-    
+    // Restore the original interrupt		
     if (sb_irq >= 8) {
         // IRQ_RestoreVector(sb_int);
     }
+	printf("\n Restored the interrupt %i %i %lx!\n\n", IRQ_TO_INTERRUPT_MAP[sb_irq], sb_irq, SB_OldInt);
+
     _dos_setvect(IRQ_TO_INTERRUPT_MAP[sb_irq], SB_OldInt);
 
-    sfx_playing = false;
     SB_DMABuffer = NULL;
     // SB_CallBack = null;
     // SB_Installed = false;
 
 
+}
+
+
+uint16_t SB_GetDSPVersion() {
+
+    SB_WriteDSP(0xE1);	// get version
+
+    SB_DSP_Version.bu.bytehigh = SB_ReadDSP();
+    SB_DSP_Version.bu.bytelow  = SB_ReadDSP();
+
+    if ((SB_DSP_Version.b.bytehigh == SB_Error) ||
+        (SB_DSP_Version.b.bytelow  == SB_Error)) {
+        return SB_Error;
+    }
+
+    if (SB_DSP_Version.hu >= SB_DSP_Version4xx) {
+        // BLASTER_Card.HasMixer = YES;
+        // BLASTER_Card.MaxMixMode = STEREO_16BIT;
+        // BLASTER_Card.MinSamplingRate = 5000;
+        // BLASTER_Card.MaxSamplingRate = 44100;
+        SB_MixerType = SB_TYPE_SB16;
+    } else if (SB_DSP_Version.hu >= SB_DSP_Version3xx) {
+        // BLASTER_Card.HasMixer = YES;
+        // BLASTER_Card.MaxMixMode = STEREO_8BIT;
+        // BLASTER_Card.MinSamplingRate = 4000;
+        // BLASTER_Card.MaxSamplingRate = 44100;
+        SB_MixerType = SB_TYPE_SBPro;
+    } else if (SB_DSP_Version.hu >= SB_DSP_Version2xx) {
+        // BLASTER_Card.HasMixer = NO;
+        // BLASTER_Card.MaxMixMode = MONO_8BIT;
+        // BLASTER_Card.MinSamplingRate = 4000;
+        // BLASTER_Card.MaxSamplingRate = 23000;
+        SB_MixerType = SB_TYPE_NONE;
+    } else {
+        // DSP_Version1xx
+        // BLASTER_Card.HasMixer = NO;
+        // BLASTER_Card.MaxMixMode = MONO_8BIT;
+        // BLASTER_Card.MinSamplingRate = 4000;
+        // BLASTER_Card.MaxSamplingRate = 23000;
+        SB_MixerType = SB_TYPE_NONE;
+    }
+
+    return SB_DSP_Version.hu;
 }
 
 int16_t SB_InitCard(){
@@ -1261,6 +1329,10 @@ int16_t SB_InitCard(){
     if (status == SB_OK) {
 		uint8_t sb_int;
 		uint8_t used_dma;
+		sfx_playing = false;
+        SB_SaveVoiceVolume();
+		SB_GetDSPVersion();
+
         SB_SetPlaybackRate(sample_rate);
         SB_SetMixMode();
 
