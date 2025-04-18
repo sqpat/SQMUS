@@ -574,7 +574,7 @@ int8_t* findfilenameparm(){
 
 #define FIXED_SB_PORT   0x220
 #define FIXED_SB_DMA_8  1
-#define FIXED_SB_DMA_16 6
+#define FIXED_SB_DMA_16 5
 #define FIXED_SB_IRQ    7
 
 #define SB_STEREO 1
@@ -641,7 +641,7 @@ byte __far* SB_BUFFERS[2] = {
 };
 
 // todo what does this mean
-#define MixBufferSize    256
+#define MixBufferSize    1024
 #define NumberOfBuffers  16
 #define TotalBufferSize  (MixBufferSize * NumberOfBuffers)
 
@@ -662,7 +662,7 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 
     // Acknowledge interrupt
     // Check if this is this an SB16 or newer
-    // if (SB_Version >= DSP_Version4xx) {
+     if (SB_DSP_Version.hu >= SB_DSP_Version4xx) {
         outp(sb_port + SB_MixerAddressPort, 0x82);  //  MIXER_DSP4xxISR_Ack);
 
         SB_Mixer_Status = inp(sb_port + SB_MixerDataPort);
@@ -670,9 +670,10 @@ void __interrupt __far SB_ServiceInterrupt(void) {
         // Check if a 16-bit DMA interrupt occurred
         if (SB_Mixer_Status & MIXER_16BITDMA_INT) {
             // Acknowledge 16-bit transfer interrupt
-            inp(sb_port + 0x0F);	// SB_16BitDMAAck
-        }
-        else if (SB_Mixer_Status & MIXER_8BITDMA_INT) {
+            printf (" 16bit! ");
+			inp(sb_port + 0x0F);	// SB_16BitDMAAck
+        } else if (SB_Mixer_Status & MIXER_8BITDMA_INT) {
+            printf (" 8bit! ");
             inp(sb_port + SB_DataAvailablePort);
         } else {
 
@@ -681,30 +682,41 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 			_chain_intr(SB_OldInt);
 		
 	    }
-    // } else {
-    //     // Older card - can't detect if an interrupt occurred.
-    //     inp(sb_port + SB_DataAvailablePort);
-    // }
+    } else {
+        // Older card - can't detect if an interrupt occurred.
+        inp(sb_port + SB_DataAvailablePort);
+    }
+
+
+
 
     // Keep track of current buffer
 	//printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
     SB_CurrentDMABuffer += SB_TransferLength/2;
 	if (SB_CurrentDMABuffer >= (SB_DMABuffer + sfx_length)){
 		// sound done playing. 
-		 sfx_playing = false;
+		 //sfx_playing = false;
 		 SB_CurrentDMABuffer = SB_DMABuffer;
 	} 
 
     if (SB_CurrentDMABuffer >= SB_DMABufferEnd) {
-        // SB_CurrentDMABuffer = SB_DMABuffer;
+		SB_CurrentDMABuffer = SB_DMABuffer;
     }
 
+	// MANUAL MIX?
+	_fmemcpy(SB_DMABuffer, sfxlocation + (SB_CurrentDMABuffer - SB_DMABuffer), SB_TransferLength/2);
+	printf(" %lx %lx %i", SB_CurrentDMABuffer, SB_DMABufferEnd, SB_CurrentDMABuffer - SB_DMABuffer);
+
+
+
     // Continue playback on cards without autoinit mode
-    // if (SB_Version < DSP_Version2xx) {
-    //     if (SB_SoundPlaying) {
-    //         SB_DSP1xx_BeginPlayback(SB_TransferLength);
-    //     }
-    // }
+    if (SB_DSP_Version.hu < SB_DSP_Version2xx) {
+        if (sfx_playing) {
+        	printf("bad dont do this C");
+            
+			// SB_DSP1xx_BeginPlayback(SB_TransferLength);
+        }
+    }
 
     // Call the caller's callback function
     // if (SB_CallBack != NULL) {
@@ -941,33 +953,31 @@ int16_t DMA_SetupTransfer(uint8_t channel, byte __far* address, uint16_t length)
 
     	DMA_PORT __near* port = &DMA_PortInfo[channel];
         uint8_t  channel_select = channel & 0x3;
-		uint32_t addr = (uint32_t)address;
-		uint8_t  page;
-		uint8_t  hi_byte;
-		uint8_t  lo_byte;
     	uint16_t transfer_length;
+		fixed_t_union addr;
+		
+		addr.wu = (uint32_t)address;
+		addr.hu.fracbits = addr.hu.fracbits + (addr.hu.intbits << 4) & 0xFF00;  // equals offset (?)
+		addr.hu.intbits = (addr.hu.intbits >> 4) & 0xFF00;		// equals page
 
 
         if (channel > 3) {	// 16 bit port
-            page = 	  (addr >> 16) & 255;
-            hi_byte = (addr >> 9) & 255;
-            lo_byte = (addr >> 1) & 255;
+			addr.hu.fracbits = addr.hu.fracbits >> 1;	// shift offset. high bit is wrong, but doesnt affect our impl.
 
             // Convert the length in bytes to the length in words
             transfer_length = (length + 1) >> 1;
 
             // The length is always one less the number of bytes or words
             // that we're going to send
-            transfer_length--;
         } else {			// 8 bit port
-            page = 	  (addr >> 16) & 255;
-            hi_byte = (addr >> 8) & 255;
-            lo_byte =  addr & 255;
 
+			// offset already set.
             // The length is always one less the number of bytes or words
             // that we're going to send
-            transfer_length = length - 1;
+            transfer_length = length;
         }
+
+		transfer_length--;
 
         // Mask off DMA channel
         outp(channel < 4 ? 	0x0A: 0xD4, 4 | channel_select);
@@ -992,11 +1002,14 @@ int16_t DMA_SetupTransfer(uint8_t channel, byte __far* address, uint16_t length)
         // }
 
         // Send address
-        outp(port->address, lo_byte);
-        outp(port->address, hi_byte);
+
+		printf("\naddr %lx %x %x %x\n", addr, addr.bu.intbytehigh, addr.bu.fracbytehigh, addr.bu.fracbytelow);
+
+        outp(port->address, addr.bu.fracbytelow);
+        outp(port->address, addr.bu.fracbytehigh);
 
         // Send page
-        outp(port->page, page);
+        outp(port->page, addr.bu.intbytehigh);
 
         // Send length
         outp(port->length, transfer_length);		// lo
@@ -1081,13 +1094,15 @@ int8_t SB_SetupPlayback(){
     
     //  Program the sound card to start the transfer.
     
-	// if (SB_Version < DSP_Version2xx) {
-    //     SB_DSP1xx_BeginPlayback(SB_TransferLength);
-    // } else if (SB_Version < DSP_Version4xx) {
-    //     SB_DSP2xx_BeginPlayback(SB_TransferLength);
-    // } else {
+	if (SB_DSP_Version.hu < SB_DSP_Version2xx) {
+        printf("bad dont do this A");
+		// SB_DSP1xx_BeginPlayback(SB_TransferLength);
+    } else if (SB_DSP_Version.hu < SB_DSP_Version4xx) {
+        printf("bad dont do this B");
+        // SB_DSP2xx_BeginPlayback(SB_TransferLength);
+    } else {
         SB_DSP4xx_BeginPlayback();
-    // }
+    }
 
     return SB_OK;
 
@@ -1403,8 +1418,10 @@ int16_t SB_InitCard(){
 int16_t main(int16_t argc, int8_t** argv) {
 	int16_t result;
 	int8_t* filename;
-	int8_t* sfxfilename = "DSBDOPN.lmp";
+	int8_t* sfxfilename = "DSPODTH1.lmp";
 	// int8_t* sfxfilename = "DSBAREXP.lmp";
+	// int8_t* sfxfilename = "DSBDOPN.lmp";
+
 	// int8_t* pcsfxfilename = "DPBDCLS.lmp";
 	//int8_t* pcsfxfilename = "DPBDOPN.lmp";
 	int8_t* pcsfxfilename = "DPITEMUP.lmp";
@@ -1458,9 +1475,13 @@ int16_t main(int16_t argc, int8_t** argv) {
 			sfxfilesize = ftell(fp);
 			sfx_length = sfxfilesize;
 			fseek(fp, 0, SEEK_SET);
+			// sfxlocation = (byte __far*) _fmalloc(sfx_length);
 			sfxlocation = (byte __far*) SB_BUFFERS[0];
 
-			far_fread(sfxlocation, sfxfilesize, 1, fp);
+			// todo process header
+			far_fread(sfxlocation, 8, 1, fp);// get rid of header
+
+			far_fread(sfxlocation, sfxfilesize-8, 1, fp);
 			fclose(fp);
 
 			pcm_samplerate = ((uint16_t __far*) sfxlocation)[1];
