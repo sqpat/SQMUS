@@ -581,6 +581,16 @@ int8_t* findfilenameparm(){
 #define SB_SIXTEEN_BIT 2
 
 
+#define SB_TYPE_NONE 	0
+
+#define SB_TYPE_SB 		1
+#define SB_TYPE_SBPro 	2
+#define SB_TYPE_SB20 	3
+#define SB_TYPE_SBPro2 	4
+#define SB_TYPE_SB16 	6
+
+void SB_StopPlayback();
+
 // actual variables that get set.
 // todo: set from environment variable.
 int16_t sb_port = -1;
@@ -590,11 +600,23 @@ int16_t sb_irq  = -1;
 int8_t sb_dma_16 = UNDEFINED_DMA;
 int8_t sb_dma_8  = UNDEFINED_DMA;
 
+int16_t     SB_IntController1Mask;
+int16_t     SB_IntController2Mask;
+
 void( __interrupt __far *SB_OldInt)(void);
 byte __far* SB_DMABuffer;
 byte __far* SB_DMABufferEnd;
 byte __far* SB_CurrentDMABuffer;
 uint16_t 	SB_TotalDMABufferSize;
+
+
+uint8_t SB_MixerType = SB_TYPE_NONE;
+uint8_t SB_OriginalMidiVolumeLeft = 255;
+uint8_t SB_OriginalMidiVolumeRight = 255;
+uint8_t SB_OriginalVoiceVolumeLeft = 255;
+uint8_t SB_OriginalVoiceVolumeRight = 255;
+
+
 
 uint16_t SB_MixMode = SB_STEREO;
 // uint16_t SB_MixMode = SB_STEREO | SB_SIXTEEN_BIT;
@@ -625,7 +647,7 @@ byte __far* SB_BUFFERS[2] = {
 #define MIXER_8BITDMA_INT  0x01
 
 void __interrupt __far SB_ServiceInterrupt(void) {
-	printf("\nINT CALLED");
+	//printf("\nINT CALLED");
 
 	if (!sfx_playing){
 		return;
@@ -637,7 +659,7 @@ void __interrupt __far SB_ServiceInterrupt(void) {
         outp(sb_port + SB_MixerAddressPort, 0x82);  //  MIXER_DSP4xxISR_Ack);
 
         SB_Mixer_Status = inp(sb_port + SB_MixerDataPort);
-		printf("\nmixer status %i %i", sb_port, SB_Mixer_Status);
+		//printf("\nmixer status %i %i", sb_port, SB_Mixer_Status);
         // Check if a 16-bit DMA interrupt occurred
         if (SB_Mixer_Status & MIXER_16BITDMA_INT) {
             // Acknowledge 16-bit transfer interrupt
@@ -658,7 +680,7 @@ void __interrupt __far SB_ServiceInterrupt(void) {
     // }
 
     // Keep track of current buffer
-	printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
+	//printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
     SB_CurrentDMABuffer += SB_TransferLength/2;
 	if (SB_CurrentDMABuffer >= (SB_DMABuffer + sfx_length)){
 		// sound done playing. 
@@ -691,8 +713,6 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 }
 
 
-int16_t     SB_IntController1Mask;
-int16_t     SB_IntController2Mask;
 
 
 enum SB_ERRORS
@@ -745,7 +765,7 @@ int16_t SB_ReadDSP(void) {
     return SB_Error;
 }
 
-int16_t SB_ResetBlaster(){
+int16_t SB_ResetDSP(){
     volatile uint8_t count;
     int16_t port = sb_port + SB_ResetPort;
 
@@ -806,9 +826,6 @@ uint8_t IRQ_TO_INTERRUPT_MAP[16] =
 
 
 
-void	SB_StopPlayback(){
-	// todo if sb is currentlty active stop it, clean up dma etc
-}
 
 
 
@@ -898,7 +915,8 @@ DMA_PORT DMA_PortInfo[8] =
 #define DMA_OK 1
 
 int8_t SB_DMA_VerifyChannel(uint8_t channel) {
-    if (channel > DMA_MaxChannel_16_BIT) {
+    //printf("channel used %i", channel);
+	if (channel > DMA_MaxChannel_16_BIT) {
         return DMA_ERROR;
     } else if (channel == 2 || channel == 4) {	// invalid dma channels
         return DMA_ERROR;
@@ -1036,7 +1054,7 @@ void SB_EnableInterrupt() {
 
 
 int8_t SB_SetupPlayback(){
-    uint16_t sample_rate = 11000;
+    uint16_t sample_rate = 11025;
 	uint16_t buffer_size = TotalBufferSize;
 	SB_StopPlayback();
     SB_SetMixMode();
@@ -1069,23 +1087,180 @@ int8_t SB_SetupPlayback(){
 
 }
 
+int8_t SB_DMA_EndTransfer(int8_t channel) {
 
+    if (SB_DMA_VerifyChannel(channel) == DMA_OK) {
+
+
+    // int Mask;	0x0A, 0xD4
+    // int Mode;	0x0B, 0xD6
+    // int Clear;	0x0C, 0xD8
+
+        // Mask off DMA channel
+        outp(channel < 4 ? 	0x0A: 0xD4, 4 | (channel & 0x3));
+
+        // Clear flip-flop to lower byte with any data
+        outp(channel < 4 ? 	0x0C: 0xD8, 0);
+		return DMA_OK;
+    }
+
+    return DMA_ERROR;
+}
+
+void SB_DisableInterrupt(){
+    int mask;
+
+    // Restore interrupt mask
+    if (sb_irq < 8) {
+        mask = inp(0x21) & ~(1 << sb_irq);
+        mask |= SB_IntController1Mask & (1 << sb_irq);
+        outp(0x21, mask);
+    } else {
+        mask = inp(0x21) & ~(1 << 2);
+        mask |= SB_IntController1Mask & (1 << 2);
+        outp(0x21, mask);
+
+        mask = inp(0xA1) & ~(1 << (sb_irq - 8));
+        mask |= SB_IntController2Mask & (1 << (sb_irq - 8));
+        outp(0xA1, mask);
+    }
+}
+
+void SB_StopPlayback(){
+
+	SB_DisableInterrupt();
+
+	if (SB_HaltTransferCommand == SB_DSP_Reset) {
+        SB_ResetDSP();
+    } else {
+        SB_WriteDSP(SB_HaltTransferCommand);
+    }
+
+    // Disable the DMA channel
+    if (SB_MixMode & SB_SIXTEEN_BIT){
+        SB_DMA_EndTransfer(sb_dma_16);
+    } else {
+        SB_DMA_EndTransfer(sb_dma_8);
+    }
+
+	SB_WriteDSP(0xD3);	// speaker off
+
+    sfx_playing = false;
+    SB_DMABuffer = NULL;
+
+
+}
+
+/*
+int8_t IRQ_RestoreVector(int8_t vector) {
+    // Restore original interrupt handlers
+    // DPMI set real mode vector
+    regs.w.ax = 0x0201;
+    regs.w.bx = vector;
+    regs.w.cx = IRQ_RealModeSegment;
+    regs.w.dx = IRQ_RealModeOffset;
+    int386(0x31, &regs, &regs);
+
+    regs.w.ax = 0x0205;
+    regs.w.bx = vector;
+    regs.w.cx = IRQ_ProtectedModeSelector;
+    regs.x.edx = IRQ_ProtectedModeOffset;
+    int386(0x31, &regs, &regs);
+
+    // Free callback
+    regs.w.ax = 0x304;
+    regs.w.cx = IRQ_CallBackSegment;
+    regs.w.dx = IRQ_CallBackOffset;
+    int386x(0x31, &regs, &regs, &segregs);
+
+    if (regs.x.cflag) {
+        return 1;
+    }
+
+    return 0;
+}
+*/
+
+#define SB_MIXER_DSP4xxISR_Ack 0x82
+#define SB_MIXER_DSP4xxISR_Enable 0x83
+#define SB_MIXER_MPU401_INT 0x4
+#define SB_MIXER_16BITDMA_INT 0x2
+#define SB_MIXER_8BITDMA_INT 0x1
+#define SB_MIXER_DisableMPU401Interrupts 0xB
+#define SB_MIXER_SBProOutputSetting 0x0E
+#define SB_MIXER_SBProStereoFlag 0x02
+#define SB_MIXER_SBProVoice 0x04
+#define SB_MIXER_SBProMidi 0x26
+#define SB_MIXER_SB16VoiceLeft 0x32
+#define SB_MIXER_SB16VoiceRight 0x33
+#define SB_MIXER_SB16MidiLeft 0x34
+#define SB_MIXER_SB16MidiRight 0x35
+
+void SB_WriteMixer(uint8_t reg,uint8_t data) {
+    outp(sb_port + SB_MixerAddressPort, reg);
+    outp(sb_port + SB_MixerDataPort, data);
+}
+
+
+void SB_RestoreVoiceVolume() {
+    switch (SB_MixerType) {
+		case SB_TYPE_SBPro:
+		case SB_TYPE_SBPro2:
+			SB_WriteMixer(SB_MIXER_SBProVoice, SB_OriginalVoiceVolumeLeft);
+			break;
+
+		case SB_TYPE_SB16:
+			SB_WriteMixer(SB_MIXER_SB16VoiceLeft,  SB_OriginalVoiceVolumeLeft);
+			SB_WriteMixer(SB_MIXER_SB16VoiceRight, SB_OriginalVoiceVolumeRight);
+			break;
+    }
+}
+
+void SB_Shutdown(){
+
+	SB_StopPlayback();
+
+    SB_RestoreVoiceVolume();
+    SB_ResetDSP();
+
+    // Restore the original interrupt
+		
+    
+    
+    if (sb_irq >= 8) {
+        // IRQ_RestoreVector(sb_int);
+    }
+    _dos_setvect(IRQ_TO_INTERRUPT_MAP[sb_irq], SB_OldInt);
+
+    sfx_playing = false;
+    SB_DMABuffer = NULL;
+    // SB_CallBack = null;
+    // SB_Installed = false;
+
+
+}
 
 int16_t SB_InitCard(){
-    uint16_t sample_rate = 11000;
+    uint16_t sample_rate = 11025;
 	int8_t status;
-	uint16_t sb_int;
+
 	//todo get these from environment variables
 	sb_irq      = FIXED_SB_IRQ;
 	sb_dma_8    = FIXED_SB_DMA_8;
 	sb_dma_16   = FIXED_SB_DMA_16;
 	sb_port 	= FIXED_SB_PORT;
+	SB_MixerType = SB_TYPE_SB16;
+
+
+
     // Save the interrupt masks
     SB_IntController1Mask = inp(0x21);
     SB_IntController2Mask = inp(0xA1);
-	status = SB_ResetBlaster();
+	status = SB_ResetDSP();
 
     if (status == SB_OK) {
+		uint8_t sb_int;
+		uint8_t used_dma;
         SB_SetPlaybackRate(sample_rate);
         SB_SetMixMode();
 
@@ -1097,11 +1272,17 @@ int16_t SB_InitCard(){
         //         return (SB_Error);
         //     }
         // }
-
-		if (SB_DMA_VerifyChannel(sb_dma)) {
-			return SB_Error;
+		
+		if (SB_MixMode & SB_SIXTEEN_BIT) {
+			used_dma = sb_dma_16;
+		} else {
+			used_dma = sb_dma_8;
 		}
 
+		if (SB_DMA_VerifyChannel(used_dma) == DMA_ERROR) {
+			return SB_Error;
+		}
+		sb_dma = used_dma;
         // Install our interrupt handler
         
         if (!VALID_IRQ(sb_irq)) {
@@ -1125,7 +1306,7 @@ int16_t SB_InitCard(){
         SB_OldInt = _dos_getvect(sb_int);
         if (sb_irq < 8) {
 			// 8 bit logic?
-			// printf("\n\nSet the interrupt %i %i %lx!\n\n", sb_int, sb_irq, SB_OldInt);
+			printf("\n\nSet the interrupt %i %i %lx!\n\n", sb_int, sb_irq, SB_OldInt);
             _dos_setvect(sb_int, SB_ServiceInterrupt);
         } else {
 			// 16 bit logic?
@@ -1370,6 +1551,7 @@ int16_t main(int16_t argc, int8_t** argv) {
 		}
 
 		TS_Shutdown();
+		SB_Shutdown();
 		printmessage("Shut down interrupt, flushing sound hardware...\n");
 
 
