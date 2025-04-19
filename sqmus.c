@@ -85,6 +85,7 @@ typedef struct {
 
     byte __far*  		location;
 	uint16_t			length;
+	uint16_t			currentsample;
 	int8_t 	 			playing;
 } SB_VoiceInfo ;
 
@@ -674,7 +675,6 @@ byte __far* SB_BUFFERS[2] = {
 
 
 
-uint16_t fileoffset = 0;
 
 void __interrupt __far SB_ServiceInterrupt(void) {
 	int8_t i;
@@ -716,7 +716,6 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 	if (SB_CurrentDMABufferOffset >= SB_DMABufferEndOffset) {
 		SB_CurrentDMABufferOffset = 0;
 	}
-	fileoffset += SB_TransferLength;
 
 
 	for (i = 0; i < NUM_SFX_TO_MIX; i++){
@@ -725,12 +724,12 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 			printf("sound done!");
 
 		} else {
-
+			sb_voicelist[i].currentsample += SB_TransferLength;
 
 			// Keep track of current buffer
 			//printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
 
-			if (fileoffset >= sb_voicelist[i].length){
+			if (sb_voicelist[i].currentsample >= sb_voicelist[i].length){
 				// sound done playing. 
 				printf(" end sound!");
 				sb_voicelist[i].playing = false;
@@ -738,7 +737,7 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 				//_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_TransferLength*2);
 			} else {
 				uint8_t __far * baseloc = MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset);
-				uint8_t __far * source  = sb_voicelist[i].location + fileoffset;
+				uint8_t __far * source  = sb_voicelist[i].location + sb_voicelist[i].currentsample;
 				uint16_t j;
 
 
@@ -1519,6 +1518,7 @@ int16_t main(int16_t argc, int8_t** argv) {
 			if (fp){
 				fseek(fp, 0, SEEK_END);
 				sb_voicelist[i].length = ftell(fp);
+				sb_voicelist[i].currentsample = 0;
 				fseek(fp, 0, SEEK_SET);
 				sb_voicelist[i].location = (byte __far*) _fmalloc(sb_voicelist[i].length);
 
@@ -1667,6 +1667,15 @@ int16_t main(int16_t argc, int8_t** argv) {
 						case '/':		/* '/' - mute volume */
 							playingdriver->changeSystemVolume(MUTE_VOLUME);
 							break;
+						case '0':
+							sb_voicelist[0].currentsample = 0;
+							sb_voicelist[0].playing = true;
+							break;
+						case '1':
+							sb_voicelist[1].currentsample = 0;
+							sb_voicelist[1].playing = true;
+							break;
+
 					}
 				}
 
