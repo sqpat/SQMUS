@@ -81,10 +81,22 @@ byte __far*  		muslocation;
 
 #define NUM_SFX_TO_MIX 2
 
-byte __far*  		sfxlocation[NUM_SFX_TO_MIX];
-uint16_t			sfx_length [NUM_SFX_TO_MIX] = {0, 0};
+typedef struct {
+
+    byte __far*  		location;
+	uint16_t			length;
+	int8_t 	 			playing;
+} SB_VoiceInfo ;
+
+SB_VoiceInfo sb_voicelist[NUM_SFX_TO_MIX];
+
+
 int8_t* 			sfxfilename[NUM_SFX_TO_MIX] = {"DSPODTH1.lmp", "DSBAREXP.lmp" };
-int8_t 	 			sfx_playing[NUM_SFX_TO_MIX] = {false, false};
+
+
+
+
+
 
 
 int8_t				playingpcmsfx;
@@ -661,6 +673,7 @@ byte __far* SB_BUFFERS[2] = {
 #define MIXER_8BITDMA_INT  0x01
 
 
+
 uint16_t fileoffset = 0;
 
 void __interrupt __far SB_ServiceInterrupt(void) {
@@ -708,7 +721,7 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 
 	for (i = 0; i < NUM_SFX_TO_MIX; i++){
 
-		if (!sfx_playing[i]){
+		if (!sb_voicelist[i].playing){
 			printf("sound done!");
 
 		} else {
@@ -717,21 +730,21 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 			// Keep track of current buffer
 			//printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
 
-			if (fileoffset >= sfx_length[i]){
+			if (fileoffset >= sb_voicelist[i].length){
 				// sound done playing. 
 				printf(" end sound!");
-				sfx_playing[i] = false;
+				sb_voicelist[i].playing = false;
 				// SB_CurrentDMABufferOffset = 0;
 				//_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_TransferLength*2);
 			} else {
 				uint8_t __far * baseloc = MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset);
-				uint8_t __far * source  = sfxlocation[i] + fileoffset;
+				uint8_t __far * source  = sb_voicelist[i].location + fileoffset;
 				uint16_t j;
 
 
 				// MANUAL MIX?
 				
-				//_fmemcpy(MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), sfxlocation[i] + fileoffset, SB_TransferLength);
+				//_fmemcpy(MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), sb_voicelist[i].location + fileoffset, SB_TransferLength);
 				
 				if (!sound_played){
 					for (j = 0; j < SB_TransferLength; j++){
@@ -768,7 +781,7 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 
 	// Continue playback on cards without autoinit mode
 	if (SB_DSP_Version.hu < SB_DSP_Version2xx) {
-		if (sfx_playing[i]) {
+		if (sb_voicelist[i].playing) {
 			printf("bad dont do this C");
 			
 			// SB_DSP1xx_BeginPlayback(SB_TransferLength);
@@ -1505,19 +1518,18 @@ int16_t main(int16_t argc, int8_t** argv) {
 			fp  = fopen(sfxfilename[i], "rb");
 			if (fp){
 				fseek(fp, 0, SEEK_END);
-				sfx_length[i] = ftell(fp);
+				sb_voicelist[i].length = ftell(fp);
 				fseek(fp, 0, SEEK_SET);
-				sfxlocation[i] = (byte __far*) _fmalloc(sfx_length[i]);
-				// sfxlocation = (byte __far*) SB_BUFFERS[0];
+				sb_voicelist[i].location = (byte __far*) _fmalloc(sb_voicelist[i].length);
 
 				// todo process header
-				far_fread(sfxlocation[i], 8, 1, fp);// get rid of header
-				pcm_samplerate = ((uint16_t __far*) sfxlocation[i])[1];
-				sfxlength = ((uint16_t __far*) sfxlocation[i])[2];	// number of samples
+				far_fread(sb_voicelist[i].location, 8, 1, fp);// get rid of header
+				pcm_samplerate = ((uint16_t __far*) sb_voicelist[i].location)[1];
+				sfxlength = ((uint16_t __far*) sb_voicelist[i].location)[2];	// number of samples
 
 				// cut out the header and reload the rest
-				sfx_length[i] -= 8;	
-				far_fread(sfxlocation[i], sfx_length[i], 1, fp);
+				sb_voicelist[i].length -= 8;	
+				far_fread(sb_voicelist[i].location, sb_voicelist[i].length, 1, fp);
 				fclose(fp);
 				
 
@@ -1525,10 +1537,10 @@ int16_t main(int16_t argc, int8_t** argv) {
 
 
 			
-				printmessage("Loaded pcm sfx %s into memory location 0x%lx successfully... %x\n", sfxfilename, sfxlocation[i]);
+				printmessage("Loaded pcm sfx %s into memory location 0x%lx successfully... %x\n", sfxfilename, sb_voicelist[i].location);
 
 				playingpcmsfx = true;
-				sfx_playing[i] = true;
+				sb_voicelist[i].playing = true;
 
 
 
