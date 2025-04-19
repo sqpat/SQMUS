@@ -605,8 +605,9 @@ int16_t     SB_IntController2Mask;
 
 void( __interrupt __far *SB_OldInt)(void);
 byte __far* SB_DMABuffer;
-byte __far* SB_DMABufferEnd;
-byte __far* SB_CurrentDMABuffer;
+uint16_t  SB_DMABufferSegment;
+uint16_t  SB_DMABufferEndOffset;
+uint16_t  SB_CurrentDMABufferOffset;
 uint16_t 	SB_TotalDMABufferSize;
 
 #define SB_DSP_Version1xx 0x0100
@@ -643,7 +644,7 @@ byte __far* SB_BUFFERS[2] = {
 
 // todo what does this mean
 #define MixBufferSize    256
-#define NumberOfBuffers  16
+#define NumberOfBuffers  2
 #define TotalBufferSize  (MixBufferSize * NumberOfBuffers)
 
 #define SB_TransferLength MixBufferSize
@@ -653,13 +654,12 @@ byte __far* SB_BUFFERS[2] = {
 #define MIXER_16BITDMA_INT 0x02
 #define MIXER_8BITDMA_INT  0x01
 
+int8_t   currentbuffer = 0;
+uint16_t fileoffset = 0;
+
 void __interrupt __far SB_ServiceInterrupt(void) {
 	printf("\nINT CALLED");
 
-	if (!sfx_playing){
-		return;
-	}
-	printf(" and playing %lx", SB_CurrentDMABuffer);
 
     // Acknowledge interrupt
     // Check if this is this an SB16 or newer
@@ -689,47 +689,59 @@ void __interrupt __far SB_ServiceInterrupt(void) {
     }
 
 
+	if (!sfx_playing){
+		printf("sound done!");
+
+	} else {
+		uint16_t target_offset = currentbuffer ? SB_TransferLength : 0;
+		printf(" and playing %lx", MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset));
 
 
-    // Keep track of current buffer
-	//printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
-    SB_CurrentDMABuffer += SB_TransferLength/2;
-	if (SB_CurrentDMABuffer >= (SB_DMABuffer + sfx_length)){
-		// sound done playing. 
-		 //sfx_playing = false;
-		 SB_CurrentDMABuffer = SB_DMABuffer;
-	} 
+		// Keep track of current buffer
+		//printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
+		SB_CurrentDMABufferOffset += SB_TransferLength;
+		
+		fileoffset += SB_TransferLength;
+		if (SB_CurrentDMABufferOffset >= sfx_length){
+			// sound done playing. 
+			printf(" end sound!");
+			sfx_playing = false;
+			SB_CurrentDMABufferOffset = 0;
+			_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_TransferLength*2);
+		} else {
+			// if (SB_CurrentDMABufferOffset >= SB_DMABufferEndOffset) {
+			// 	SB_CurrentDMABufferOffset = 0;
+			// }
 
-    if (SB_CurrentDMABuffer >= SB_DMABufferEnd) {
-		SB_CurrentDMABuffer = SB_DMABuffer;
-    }
+			// MANUAL MIX?
+			_fmemcpy(MK_FP(SB_DMABufferSegment, target_offset), sfxlocation + fileoffset, SB_TransferLength);
+			printf(" %lx %x %i", MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), SB_DMABufferEndOffset, SB_CurrentDMABufferOffset);
+			
+			currentbuffer = 1 - currentbuffer;
+			// Continue playback on cards without autoinit mode
+			if (SB_DSP_Version.hu < SB_DSP_Version2xx) {
+				if (sfx_playing) {
+					printf("bad dont do this C");
+					
+					// SB_DSP1xx_BeginPlayback(SB_TransferLength);
+				}
+			}
+		}
 
-	// MANUAL MIX?
-	_fmemcpy(SB_DMABuffer, sfxlocation + (SB_CurrentDMABuffer - SB_DMABuffer), SB_TransferLength/2);
-	printf(" %lx %lx %i", SB_CurrentDMABuffer, SB_DMABufferEnd, SB_CurrentDMABuffer - SB_DMABuffer);
+		// Call the caller's callback function
+		// if (SB_CallBack != NULL) {
+		//     MV_ServiceVoc();
+		// }
 
+		// send EOI to Interrupt Controller
 
+	}
 
-    // Continue playback on cards without autoinit mode
-    if (SB_DSP_Version.hu < SB_DSP_Version2xx) {
-        if (sfx_playing) {
-        	printf("bad dont do this C");
-            
-			// SB_DSP1xx_BeginPlayback(SB_TransferLength);
-        }
-    }
+		if (sb_irq > 7){
+			outp(0xA0, 0x20);
+		}
 
-    // Call the caller's callback function
-    // if (SB_CallBack != NULL) {
-    //     MV_ServiceVoc();
-    // }
-
-    // send EOI to Interrupt Controller
-    if (sb_irq > 7){
-        outp(0xA0, 0x20);
-    }
-
-    outp(0x20, 0x20);
+		outp(0x20, 0x20);
 }
 
 
@@ -1027,10 +1039,11 @@ int8_t SB_SetupDMABuffer( byte __far *buffer, uint16_t buffer_size) {
 
     sb_dma = dma_channel;
 
-    SB_DMABuffer 			= buffer;
-    SB_CurrentDMABuffer 	= buffer;
-    SB_TotalDMABufferSize 	= buffer_size;
-    SB_DMABufferEnd 		= buffer + buffer_size;
+    SB_DMABuffer 				= buffer;
+	SB_DMABufferSegment     	= FP_SEG(SB_DMABuffer);
+    SB_CurrentDMABufferOffset 	= 0;
+    SB_TotalDMABufferSize 		= buffer_size;
+    SB_DMABufferEndOffset 		= buffer_size;
 
     return SB_OK;
 }
@@ -1456,8 +1469,8 @@ int16_t main(int16_t argc, int8_t** argv) {
 			sfxfilesize = ftell(fp);
 			sfx_length = sfxfilesize;
 			fseek(fp, 0, SEEK_SET);
-			// sfxlocation = (byte __far*) _fmalloc(sfx_length);
-			sfxlocation = (byte __far*) SB_BUFFERS[0];
+			sfxlocation = (byte __far*) _fmalloc(sfx_length);
+			// sfxlocation = (byte __far*) SB_BUFFERS[0];
 
 			// todo process header
 			far_fread(sfxlocation, 8, 1, fp);// get rid of header
