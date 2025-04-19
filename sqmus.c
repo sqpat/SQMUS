@@ -79,7 +79,7 @@ uint32_t 			currentsong_int_count;
 int16_t 			currentsong_ticks_to_process = 0;
 byte __far*  		muslocation;
 
-#define NUM_SFX_TO_MIX 2
+#define NUM_SFX_TO_MIX 4
 
 typedef struct {
 
@@ -92,7 +92,7 @@ typedef struct {
 SB_VoiceInfo sb_voicelist[NUM_SFX_TO_MIX];
 
 
-int8_t* 			sfxfilename[NUM_SFX_TO_MIX] = {"DSPODTH1.lmp", "DSBAREXP.lmp" };
+int8_t* 			sfxfilename[NUM_SFX_TO_MIX] = {"DSPODTH1.lmp", "DSBAREXP.lmp", "DSPODTH2.lmp", "DSPODTH3.lmp" };
 
 
 
@@ -1674,6 +1674,13 @@ int16_t main(int16_t argc, int8_t** argv) {
 						case '1':
 							sb_voicelist[1].currentsample = 0;
 							sb_voicelist[1].playing = true;
+						case '2':
+							sb_voicelist[2].currentsample = 0;
+							sb_voicelist[2].playing = true;
+							break;
+						case '3':
+							sb_voicelist[3].currentsample = 0;
+							sb_voicelist[3].playing = true;
 							break;
 
 					}
