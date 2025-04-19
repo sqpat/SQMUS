@@ -577,8 +577,8 @@ int8_t* findfilenameparm(){
 #define FIXED_SB_DMA_16 5
 #define FIXED_SB_IRQ    7
 
-#define SB_STEREO 1
-#define SB_SIXTEEN_BIT 2
+// #define SB_STEREO 1
+// #define SB_SIXTEEN_BIT 2
 
 
 #define SB_TYPE_NONE 	0
@@ -625,8 +625,9 @@ uint8_t SB_OriginalVoiceVolumeRight = 255;
 
 
 
-uint16_t SB_MixMode = SB_STEREO;
+// uint16_t SB_MixMode = 0; //SB_STEREO;
 // uint16_t SB_MixMode = SB_STEREO | SB_SIXTEEN_BIT;
+// uint16_t SB_MixMode = SB_SIXTEEN_BIT;
 
 uint16_t sfx_length = 0;
 int8_t 	 sfx_playing = false;
@@ -641,7 +642,7 @@ byte __far* SB_BUFFERS[2] = {
 };
 
 // todo what does this mean
-#define MixBufferSize    1024
+#define MixBufferSize    256
 #define NumberOfBuffers  16
 #define TotalBufferSize  (MixBufferSize * NumberOfBuffers)
 
@@ -866,36 +867,16 @@ uint16_t SB_HaltTransferCommand;
 
 
 void SB_DSP4xx_BeginPlayback() {
-    int8_t transfer_command;
-    int8_t transfer_mode;
     uint16_t sample_length = MixBufferSize;
 
-    if (SB_MixMode & SB_SIXTEEN_BIT) {
-        transfer_command = 0xB6; // 16 bit DAC
-        sample_length >>= 1;
-        SB_HaltTransferCommand = SB_DSP_Halt16bitTransfer;
-        if (SB_MixMode & SB_STEREO) {
-            transfer_mode = SB_DSP_SignedStereoData;
-        } else {
-            transfer_mode = SB_DSP_SignedMonoData;
-        }
-    } else {
-        transfer_command = 0xC6; // 8 bit dac
-        
-        SB_HaltTransferCommand = SB_DSP_Halt8bitTransfer;
-        if (SB_MixMode & SB_STEREO) {
-            transfer_mode = SB_DSP_UnsignedStereoData;
-        } else {
-            transfer_mode = SB_DSP_UnsignedMonoData;
-        }
-    }
+	SB_HaltTransferCommand = SB_DSP_Halt8bitTransfer;
 
 	sample_length--;
 
 
     // Program DSP to play sound
-    SB_WriteDSP(transfer_command);
-    SB_WriteDSP(transfer_mode);
+    SB_WriteDSP(0xC6);	// 8 bit dac
+    SB_WriteDSP(SB_DSP_UnsignedMonoData);	// transfer mode
     SB_WriteDSP(sample_length&0xFF);
     SB_WriteDSP(sample_length>>8);
 
@@ -1030,11 +1011,11 @@ int8_t SB_SetupDMABuffer( byte __far *buffer, uint16_t buffer_size) {
     int8_t dma_channel;
     int8_t dma_status;
 
-    if (SB_MixMode & SB_SIXTEEN_BIT) {
-        dma_channel = sb_dma_16;
-    } else {
+    // if (SB_MixMode & SB_SIXTEEN_BIT) {
+        // dma_channel = sb_dma_16;
+    // } else {
         dma_channel = sb_dma_8;
-    }
+    // }
 
     if (dma_channel == UNDEFINED_DMA) {
         return SB_Error;
@@ -1159,11 +1140,11 @@ void SB_StopPlayback(){
     }
 
     // Disable the DMA channel
-    if (SB_MixMode & SB_SIXTEEN_BIT){
-        SB_DMA_EndTransfer(sb_dma_16);
-    } else {
+    // if (SB_MixMode & SB_SIXTEEN_BIT){
+        // SB_DMA_EndTransfer(sb_dma_16);
+    // } else {
         SB_DMA_EndTransfer(sb_dma_8);
-    }
+    // }
 
 	SB_WriteDSP(0xD3);	// speaker off
 
@@ -1360,11 +1341,11 @@ int16_t SB_InitCard(){
         //     }
         // }
 		
-		if (SB_MixMode & SB_SIXTEEN_BIT) {
-			used_dma = sb_dma_16;
-		} else {
+		// if (SB_MixMode & SB_SIXTEEN_BIT) {
+			// used_dma = sb_dma_16;
+		// } else {
 			used_dma = sb_dma_8;
-		}
+		// }
 
 		if (SB_DMA_VerifyChannel(used_dma) == DMA_ERROR) {
 			return SB_Error;
