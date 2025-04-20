@@ -83,7 +83,7 @@ byte __far*  		muslocation;
 
 typedef struct {
 
-    byte __far*  		location;
+    uint8_t __far*  		location;
 	uint16_t			length;
 	uint16_t			currentsample;
 	int8_t 	 			playing;
@@ -234,7 +234,6 @@ void MUS_ServiceRoutine(){
 	if (finishplaying){
 		return;
 	}	
-	return;
 /*
 	if (playingpcspeakersfx) {
 
@@ -673,6 +672,8 @@ byte __far* SB_BUFFERS[2] = {
 #define MIXER_16BITDMA_INT 0x02
 #define MIXER_8BITDMA_INT  0x01
 
+void SB_DSP1xx_BeginPlayback();
+
 
 
 
@@ -781,9 +782,8 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 	// Continue playback on cards without autoinit mode
 	if (SB_DSP_Version.hu < SB_DSP_Version2xx) {
 		if (sb_voicelist[i].playing) {
-			printf("bad dont do this C");
 			
-			// SB_DSP1xx_BeginPlayback(SB_TransferLength);
+			SB_DSP1xx_BeginPlayback();
 		}
 	}
 
@@ -928,19 +928,49 @@ uint8_t IRQ_TO_INTERRUPT_MAP[16] =
 uint16_t SB_HaltTransferCommand;
 
 
-void SB_DSP4xx_BeginPlayback() {
-    uint16_t sample_length = SB_MixBufferSize;
+void SB_DSP1xx_BeginPlayback() {
+    int16_t_union sample_length;
+	sample_length.hu = SB_MixBufferSize - 1;
 
+    // Program DSP to play sound
+    SB_WriteDSP(0x14);	// SB DAC 8 bit init, no autoinit
+    SB_WriteDSP(sample_length.bu.bytelow);
+    SB_WriteDSP(sample_length.bu.bytehigh);
+
+    SB_HaltTransferCommand = SB_DSP_Halt8bitTransfer;
+
+
+}
+
+void SB_DSP2xx_BeginPlayback() {
+
+    int16_t_union sample_length;
+	sample_length.hu = SB_MixBufferSize - 1;
+
+    SB_WriteDSP(0x48);	// set block length
+    SB_WriteDSP(sample_length.bu.bytelow);
+    SB_WriteDSP(sample_length.bu.bytehigh);
+
+
+	SB_WriteDSP(0x1C);	// SB DAC init, 8 bit auto init
 	SB_HaltTransferCommand = SB_DSP_Halt8bitTransfer;
 
-	sample_length--;
+
+
+}
+
+void SB_DSP4xx_BeginPlayback() {
+    int16_t_union sample_length;
+	sample_length.hu = SB_MixBufferSize - 1;
+
+	SB_HaltTransferCommand = SB_DSP_Halt8bitTransfer;
 
 
     // Program DSP to play sound
     SB_WriteDSP(0xC6);	// 8 bit dac
     SB_WriteDSP(SB_DSP_UnsignedMonoData);	// transfer mode
-    SB_WriteDSP(sample_length&0xFF);
-    SB_WriteDSP(sample_length>>8);
+    SB_WriteDSP(sample_length.bu.bytelow);
+    SB_WriteDSP(sample_length.bu.bytehigh);
 
 
 }
@@ -1140,11 +1170,9 @@ int8_t SB_SetupPlayback(){
     //  Program the sound card to start the transfer.
     
 	if (SB_DSP_Version.hu < SB_DSP_Version2xx) {
-        printf("bad dont do this A");
-		// SB_DSP1xx_BeginPlayback(SB_TransferLength);
+		SB_DSP1xx_BeginPlayback();
     } else if (SB_DSP_Version.hu < SB_DSP_Version4xx) {
-        printf("bad dont do this B");
-        // SB_DSP2xx_BeginPlayback(SB_TransferLength);
+        SB_DSP2xx_BeginPlayback();
     } else {
         SB_DSP4xx_BeginPlayback();
     }
@@ -1338,30 +1366,15 @@ uint16_t SB_GetDSPVersion() {
         return SB_Error;
     }
 
+	// SB_DSP_Version.hu = 0x101;
+
     if (SB_DSP_Version.hu >= SB_DSP_Version4xx) {
-        // BLASTER_Card.HasMixer = YES;
-        // BLASTER_Card.MaxMixMode = STEREO_16BIT;
-        // BLASTER_Card.MinSamplingRate = 5000;
-        // BLASTER_Card.MaxSamplingRate = 44100;
         SB_MixerType = SB_TYPE_SB16;
     } else if (SB_DSP_Version.hu >= SB_DSP_Version3xx) {
-        // BLASTER_Card.HasMixer = YES;
-        // BLASTER_Card.MaxMixMode = STEREO_8BIT;
-        // BLASTER_Card.MinSamplingRate = 4000;
-        // BLASTER_Card.MaxSamplingRate = 44100;
         SB_MixerType = SB_TYPE_SBPro;
     } else if (SB_DSP_Version.hu >= SB_DSP_Version2xx) {
-        // BLASTER_Card.HasMixer = NO;
-        // BLASTER_Card.MaxMixMode = MONO_8BIT;
-        // BLASTER_Card.MinSamplingRate = 4000;
-        // BLASTER_Card.MaxSamplingRate = 23000;
         SB_MixerType = SB_TYPE_NONE;
     } else {
-        // DSP_Version1xx
-        // BLASTER_Card.HasMixer = NO;
-        // BLASTER_Card.MaxMixMode = MONO_8BIT;
-        // BLASTER_Card.MinSamplingRate = 4000;
-        // BLASTER_Card.MaxSamplingRate = 23000;
         SB_MixerType = SB_TYPE_NONE;
     }
 
@@ -1427,13 +1440,6 @@ int16_t SB_InitCard(){
             return SB_Error;
         }
 
-        // StackSelector = allocateTimerStack(kStackSize);
-        // if (StackSelector == NULL) {
-        //     return SB_Error;
-        // }
-
-        // Leave a little room at top of stack just for the hell of it...
-        // StackPointer = kStackSize - sizeof(long);
 
         SB_OldInt = _dos_getvect(sb_int);
         if (sb_irq < 8) {
@@ -1443,12 +1449,6 @@ int16_t SB_InitCard(){
         } else {
 			// 16 bit logic?
             // status = IRQ_SetVector(Interrupt, SB_ServiceInterrupt);
-            // if (status != IRQ_Ok)
-            // {
-            //     deallocateTimerStack(StackSelector);
-            //     StackSelector = NULL;
-            //     return (SB_Error);
-            // }
         }
 
         return  SB_OK;
@@ -1520,7 +1520,7 @@ int16_t main(int16_t argc, int8_t** argv) {
 				sb_voicelist[i].length = ftell(fp);
 				sb_voicelist[i].currentsample = 0;
 				fseek(fp, 0, SEEK_SET);
-				sb_voicelist[i].location = (byte __far*) _fmalloc(sb_voicelist[i].length);
+				sb_voicelist[i].location = (uint8_t __far*) _fmalloc(sb_voicelist[i].length);
 
 				// todo process header
 				far_fread(sb_voicelist[i].location, 8, 1, fp);// get rid of header
