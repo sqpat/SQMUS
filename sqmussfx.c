@@ -16,11 +16,19 @@
 #include <ctype.h>
 #include <malloc.h>
 
+void SB_SetPlaybackRate(int16_t sample_rate);
+void SB_DSP1xx_BeginPlayback();
 
-SB_VoiceInfo sb_voicelist[NUM_SFX_TO_MIX];
 
 
-int8_t* 			sfxfilename[NUM_SFX_TO_MIX] = {"DSPODTH1.lmp", "DSBAREXP.lmp", "DSPODTH2.lmp", "DSPODTH3.lmp", "DSITMBK.lmp" };
+void( __interrupt __far *SB_OldInt)(void);
+
+SB_VoiceInfo        sb_voicelist[NUM_SFX_TO_MIX];
+
+SB_VoiceInfo        sb_sfx_info[NUM_SFX_LUMPS];
+
+int8_t* 			sfxfilename[NUM_SFX_LUMPS] = {"DSPODTH1.lmp", "DSBAREXP.lmp", "DSPODTH2.lmp", "DSPODTH3.lmp", "DSITMBK.lmp" };
+
 
 
 
@@ -360,15 +368,29 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 
 
 
-void SB_PlaySoundEffect(int8_t i){
-	sb_voicelist[i].currentsample = 0;
-	sb_voicelist[i].playing = true;
-	if (sb_voicelist[i].samplerate){
-		if (!current_sampling_rate){
-			change_sampling_to_22_next_int = 1;
-			printf("\nturning 22 khz mode on next int");
-		}
-	}
+void SB_PlaySoundEffect(int8_t sfx_id){
+	int8_t i;
+    for (i = 0; i < NUM_SFX_TO_MIX;i++){
+        if (sb_voicelist[i].playing == false){
+
+            sb_voicelist[i].currentsample = 0;
+            sb_voicelist[i].playing = true;
+            sb_voicelist[i].samplerate = sb_sfx_info[sfx_id].samplerate;
+            sb_voicelist[i].location   = sb_sfx_info[sfx_id].location;
+            sb_voicelist[i].length     = sb_sfx_info[sfx_id].length;
+
+            if (sb_voicelist[i].samplerate){
+                if (!current_sampling_rate){
+                    change_sampling_to_22_next_int = 1;
+                    printf("\nturning 22 khz mode on next int");
+                }
+            }
+
+
+            break;
+        }
+    }
+    
 
 }
 

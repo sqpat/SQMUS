@@ -94,7 +94,6 @@ enum SB_ERRORS
 
 
 
-void( __interrupt __far *SB_OldInt)(void);
 #define SB_DSP_Version1xx 0x0100
 #define SB_DSP_Version2xx 0x0200
 #define SB_DSP_Version201 0x0201
@@ -103,7 +102,9 @@ void( __interrupt __far *SB_OldInt)(void);
 void SB_StopPlayback();
 
 
-#define NUM_SFX_TO_MIX 5
+#define NUM_SFX_TO_MIX 8
+
+#define NUM_SFX_LUMPS 5
 
 
 typedef struct {
@@ -115,7 +116,16 @@ typedef struct {
 	int8_t 	 			playing;
 } SB_VoiceInfo ;
 
+
+typedef struct {
+
+    uint8_t __far*  	location;
+	int8_t				samplerate;
+	uint16_t			length;
+} SB_SFXLumpInfo ;
+
 extern SB_VoiceInfo sb_voicelist[NUM_SFX_TO_MIX];
-extern int8_t* 			sfxfilename[NUM_SFX_TO_MIX];
+extern SB_VoiceInfo sb_sfx_info[NUM_SFX_LUMPS];
+extern int8_t* 			sfxfilename[NUM_SFX_LUMPS];
 
 

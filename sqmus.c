@@ -86,7 +86,6 @@ byte __far*  		muslocation;
 
 
 
-int8_t				playingpcmsfx;
 int8_t				playingpcspeakersfx;
 uint16_t			sfxlength;
 uint16_t 			sfxlength_currentsample;
@@ -620,7 +619,7 @@ int16_t main(int16_t argc, int8_t** argv) {
 		printmessage("Loaded mus %s into memory location 0x%lx successfully...\n", filename, muslocation);
 
 		// load pcm sfx!
-		for (i = 0; i < NUM_SFX_TO_MIX; i++){
+		for (i = 0; i < NUM_SFX_LUMPS; i++){
 			fp  = fopen(sfxfilename[i], "rb");
 			if (fp){
 				int16_t_union word_read;
@@ -630,23 +629,20 @@ int16_t main(int16_t argc, int8_t** argv) {
 				fgetc(fp);	// supposed to be 00
 				word_read.bu.bytelow  = fgetc(fp); // sample rate lo
 				word_read.bu.bytehigh = fgetc(fp); // sample rate hi
-				sb_voicelist[i].samplerate =  (word_read.hu == SAMPLE_RATE_22_KHZ_UINT) ? 1 : 0;
+				sb_sfx_info[i].samplerate =  (word_read.hu == SAMPLE_RATE_22_KHZ_UINT) ? 1 : 0;
 				word_read.bu.bytelow  = fgetc(fp);	// sample count lo
 				word_read.bu.bytehigh = fgetc(fp);  // sample count hi  (TODO: in theory 4 bytes)
-				sb_voicelist[i].length =  word_read.hu - 32;	// subtract padding
+				sb_sfx_info[i].length =  word_read.hu - 32;	// subtract padding
 				fseek(fp, 0x18, SEEK_SET);
 
- 				sb_voicelist[i].location = (uint8_t __far*) _fmalloc(sb_voicelist[i].length);
+ 				sb_sfx_info[i].location = (uint8_t __far*) _fmalloc(sb_sfx_info[i].length);
 				
 				// cut out the header and reload the rest
-				far_fread(sb_voicelist[i].location, sb_voicelist[i].length, 1, fp);
+				far_fread(sb_sfx_info[i].location, sb_sfx_info[i].length, 1, fp);
 				fclose(fp);
 				
 			
-				printmessage("Loaded pcm sfx %s into memory location 0x%lx successfully...\n", sfxfilename[i], sb_voicelist[i].location);
-
-				playingpcmsfx = true;
-				sb_voicelist[i].playing = false;
+				printmessage("Loaded pcm sfx %s into memory location 0x%lx successfully...\n", sfxfilename[i], sb_sfx_info[i].location);
 
 
 
