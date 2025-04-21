@@ -14,4 +14,5 @@ file sqmusopl.obj
 file sqmusmpu.obj
 file sqmusmid.obj
 file sqmussbm.obj
+file sqmussfx.obj
 file dmx.obj

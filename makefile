@@ -33,6 +33,7 @@ sqmusopl.obj &
 sqmusmpu.obj &
 sqmusmid.obj &
 sqmussbm.obj &
+sqmussfx.obj &
 dmx.obj
 
 
