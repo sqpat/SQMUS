@@ -27,7 +27,10 @@ SB_VoiceInfo        sb_voicelist[NUM_SFX_TO_MIX];
 
 SB_VoiceInfo        sb_sfx_info[NUM_SFX_LUMPS];
 
-int8_t* 			sfxfilename[NUM_SFX_LUMPS] = {"DSPODTH1.lmp", "DSBAREXP.lmp", "DSPODTH2.lmp", "DSPODTH3.lmp", "DSITMBK.lmp" };
+int8_t* 			sfxfilename[NUM_SFX_LUMPS] = {"DSPODTH1.lmp", "DSBAREXP.lmp", "DSPODTH2.lmp", "DSPODTH3.lmp", "DSITMBK.lmp",
+                                                  "DSBDCLS.lmp",  "DSBDOPN.lmp", "DSPLPAIN.lmp", "DSDMPAIN.lmp", "DSTELEPT.lmp"
+
+                                                 };
 
 
 

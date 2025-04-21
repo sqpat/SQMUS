@@ -1,7 +1,7 @@
 Open Watcom Linker Version 2.0 beta Sep  3 2024 02:05:05 (32-bit)
 Copyright (c) 2002-2024 The Open Watcom Contributors. All Rights Reserved.
 Portions Copyright (c) 1985-2002 Sybase, Inc. All Rights Reserved.
-Created on:       25/04/21 13:22:12
+Created on:       25/04/21 15:06:23
 Executable Image: sqmus.exe
 creating a DOS executable
 
@@ -13,7 +13,7 @@ creating a DOS executable
 Group                           Address              Size
 =====                           =======              ====
 
-DGROUP                          062b:0000            00001930
+DGROUP                          062b:0000            000019b0
 
 
 
@@ -29,18 +29,18 @@ _TEXT                  CODE           AUTO           0000:0010       0000629d
 FAR_DATA               FAR_DATA       AUTO           062a:000d       00000000
 _NULL                  BEGDATA        DGROUP         062b:0000       00000020
 _AFTERNULL             BEGDATA        DGROUP         062d:0000       00000002
-CONST                  DATA           DGROUP         062d:0002       0000068a
-CONST2                 DATA           DGROUP         0695:000c       00000035
-_DATA                  DATA           DGROUP         069a:0000       000005b6
-XIB                    DATA           DGROUP         06f5:0006       00000000
-XI                     DATA           DGROUP         06f5:0006       00000012
-XIE                    DATA           DGROUP         06f6:0008       00000000
-YIB                    DATA           DGROUP         06f6:0008       00000000
-YI                     DATA           DGROUP         06f6:0008       00000012
-YIE                    DATA           DGROUP         06f7:000a       00000000
-DATA                   DATA           DGROUP         06f7:000a       00000000
-_BSS                   BSS            DGROUP         06f8:0000       00000958
-STACK                  STACK          DGROUP         078e:0000       00000300
+CONST                  DATA           DGROUP         062d:0002       000006ca
+CONST2                 DATA           DGROUP         0699:000c       00000035
+_DATA                  DATA           DGROUP         069e:0000       000005c6
+XIB                    DATA           DGROUP         06fa:0006       00000000
+XI                     DATA           DGROUP         06fa:0006       00000012
+XIE                    DATA           DGROUP         06fb:0008       00000000
+YIB                    DATA           DGROUP         06fb:0008       00000000
+YI                     DATA           DGROUP         06fb:0008       00000012
+YIE                    DATA           DGROUP         06fc:000a       00000000
+DATA                   DATA           DGROUP         06fc:000a       00000000
+_BSS                   BSS            DGROUP         06fd:0000       00000988
+STACK                  STACK          DGROUP         0796:0000       00000300
 
 
                         +----------------+
@@ -54,25 +54,25 @@ Address        Symbol
 =======        ======
 
 Module: sqmus.obj(C:\SQMUS\sqmus.c)
-062b:0cd0      _AdLibInstrumentList
-062b:10c0+     _muslocation
-062b:10c4+     _currentsong_int_count
-062b:10c8+     _myargc
-062b:10ca+     _myargv
-062b:10cc+     _currentsong_length
-062b:10ce+     _currentsong_start_offset
-062b:10d0+     _currentsong_looping
-062b:10d2+     _currentsong_num_instruments
-062b:06f0      _playingdriver
-062b:06f2+     _currentsong_ticks_to_process
-062b:06f4      _playingstate
-062b:06f6      _playingpercussMask
-062b:06f8      _playingvolume
-062b:06fc      _playingtime
-062b:0700+     _called
-062b:0702+     _finishplaying
-062b:0704+     _loops_enabled
-062b:0706+     _opl_valid_instruments
+062b:0d20      _AdLibInstrumentList
+062b:1110+     _muslocation
+062b:1114+     _currentsong_int_count
+062b:1118+     _myargc
+062b:111a+     _myargv
+062b:111c+     _currentsong_length
+062b:111e+     _currentsong_start_offset
+062b:1120+     _currentsong_looping
+062b:1122+     _currentsong_num_instruments
+062b:0730      _playingdriver
+062b:0732+     _currentsong_ticks_to_process
+062b:0734      _playingstate
+062b:0736      _playingpercussMask
+062b:0738      _playingvolume
+062b:073c      _playingtime
+062b:0740+     _called
+062b:0742+     _finishplaying
+062b:0744+     _loops_enabled
+062b:0746+     _opl_valid_instruments
 0000:0010*     donothing_
 0000:0012+     far_fread_
 0000:009c+     MUS_Parseheader_
@@ -88,17 +88,17 @@ Module: sqmus.obj(C:\SQMUS\sqmus.c)
 0000:05ba+     checkparm_
 0000:0604+     findfilenameparm_
 0000:06b4      main_
-062b:0708+     _pc_speaker_freq_table
-062b:0808*     _next
-062b:080a*     _lastvalue
-062b:10d4+     _currentsong_primary_channels
-062b:10d6+     _currentsong_secondary_channels
-062b:10d8*     _sfxlength_currentsample
-062b:10da+     _currentsong_play_timer
-062b:10dc+     _currentsong_playing_offset
-062b:10de*     _sfxlength
-062b:10e0      _instrumentlookup
-062b:118f*     _playingpcspeakersfx
+062b:0748+     _pc_speaker_freq_table
+062b:0848*     _next
+062b:084a*     _lastvalue
+062b:1124+     _currentsong_primary_channels
+062b:1126+     _currentsong_secondary_channels
+062b:1128*     _sfxlength_currentsample
+062b:112a+     _currentsong_play_timer
+062b:112c+     _currentsong_playing_offset
+062b:112e*     _sfxlength
+062b:1130      _instrumentlookup
+062b:11df*     _playingpcspeakersfx
 Module: sqmusopl.obj(C:\SQMUS\sqmusopl.c)
 0000:0b30+     OPLwriteReg_
 0000:0b6c+     OPLwriteChannel_
@@ -136,20 +136,20 @@ Module: sqmusopl.obj(C:\SQMUS\sqmusopl.c)
 0000:17f6+     OPL3initHardware_
 0000:1800+     OPL3deinitHardware_
 0000:1800+     OPL2deinitHardware_
-062b:080e+     _OPLport
-062b:0810+     _OPLchannels
-062b:0811+     _OPL3mode
-062b:0812+     _op_num
-062b:0836+     _reg_num
-062b:085a+     _noteVolumetable
-062b:08da      _OPL2driver
-062b:08f5      _OPL3driver
-062b:0910+     _OPLsinglevoice
-062b:0912+     _freqtable
-062b:0920+     _freqtable2
-062b:0938+     _pitchwheeltable
-062b:1190+     _OPL2driverdata
-062b:1200+     _channels
+062b:084e+     _OPLport
+062b:0850+     _OPLchannels
+062b:0851+     _OPL3mode
+062b:0852+     _op_num
+062b:0876+     _reg_num
+062b:089a+     _noteVolumetable
+062b:091a      _OPL2driver
+062b:0935      _OPL3driver
+062b:0950+     _OPLsinglevoice
+062b:0952+     _freqtable
+062b:0960+     _freqtable2
+062b:0978+     _pitchwheeltable
+062b:11e0+     _OPL2driverdata
+062b:1250+     _channels
 Module: sqmusmpu.obj(C:\SQMUS\sqmusmpu.c)
 0000:1810+     MPU401sendByte_
 0000:185e*     MPU401sendBlock_
@@ -159,9 +159,9 @@ Module: sqmusmpu.obj(C:\SQMUS\sqmusmpu.c)
 0000:1902      MPU401detectHardware_
 0000:1914+     MPU401initHardware_
 0000:1924+     MPU401sendCommand_
-062b:0a3a+     _MPU401port
-062b:0a3c      _runningStatus
-062b:0a3d      _MPU401driver
+062b:0a7a+     _MPU401port
+062b:0a7c      _runningStatus
+062b:0a7d      _MPU401driver
 Module: sqmusmid.obj(C:\SQMUS\sqmusmid.c)
 0000:1960*     calcVolume_
 0000:1970+     stopChannel_
@@ -176,11 +176,11 @@ Module: sqmusmid.obj(C:\SQMUS\sqmusmid.c)
 0000:1e72      MIDIstopMusic_
 0000:1eec      MIDIchangeSystemVolume_
 0000:1ef8      MIDIinitDriver_
-062b:06ac+     _MUS2MIDIctrl
-062b:1300+     _mididriverData
-062b:13e0+     _MIDItime
-062b:1420+     _MIDIchannels
-062b:1430*     _percussMask
+062b:06ec+     _MUS2MIDIctrl
+062b:1350+     _mididriverData
+062b:1430+     _MIDItime
+062b:1470+     _MIDIchannels
+062b:1480*     _percussMask
 Module: sqmussbm.obj(C:\SQMUS\sqmussbm.c)
 0000:1f30+     SBMIDIsendByte_
 0000:1f82*     SBMIDIsendBlock_
@@ -188,30 +188,30 @@ Module: sqmussbm.obj(C:\SQMUS\sqmussbm.c)
 0000:1fe0      SBMIDIdetectHardware_
 0000:1fe8+     SBMIDIinitHardware_
 0000:1fec+     SBMIDIdeinitHardware_
-062b:0a58+     _SBMIDIport
-062b:0a5a      _SBMIDIdriver
+062b:0a98+     _SBMIDIport
+062b:0a9a      _SBMIDIdriver
 Module: sqmussfx.obj(C:\SQMUS\sqmussfx.c)
-062b:1440*     _sb_dma_buffer
-062b:1450+     _sb_voicelist
-062b:14a0+     _SB_DMABuffer
-062b:14a4+     _SB_OldInt
-062b:14a8      _sb_sfx_info
-062b:14da+     _SB_HaltTransferCommand
-062b:14dc+     _SB_TotalDMABufferSize
-062b:14de+     _SB_IntController1Mask
-062b:14e0+     _SB_IntController2Mask
-062b:14e2+     _SB_DMABufferSegment
-062b:0a80      _sfxfilename
-062b:0a8a+     _sb_port
-062b:0a8c+     _sb_dma
-062b:0a8e+     _sb_irq
-062b:0a90+     _sb_dma_16
-062b:0a91+     _sb_dma_8
-062b:0a92+     _SB_MixerType
-062b:0a93*     _SB_OriginalMidiVolumeLeft
-062b:0a94*     _SB_OriginalMidiVolumeRight
-062b:0a95+     _SB_OriginalVoiceVolumeLeft
-062b:0a96+     _SB_OriginalVoiceVolumeRight
+062b:1490*     _sb_dma_buffer
+062b:14a0+     _sb_voicelist
+062b:14f0+     _SB_DMABuffer
+062b:14f4+     _SB_OldInt
+062b:14f8      _sb_sfx_info
+062b:155c+     _SB_HaltTransferCommand
+062b:155e+     _SB_TotalDMABufferSize
+062b:1560+     _SB_IntController1Mask
+062b:1562+     _SB_IntController2Mask
+062b:1564+     _SB_DMABufferSegment
+062b:0ac0      _sfxfilename
+062b:0ad4+     _sb_port
+062b:0ad6+     _sb_dma
+062b:0ad8+     _sb_irq
+062b:0ada+     _sb_dma_16
+062b:0adb+     _sb_dma_8
+062b:0adc+     _SB_MixerType
+062b:0add*     _SB_OriginalMidiVolumeLeft
+062b:0ade*     _SB_OriginalMidiVolumeRight
+062b:0adf+     _SB_OriginalVoiceVolumeLeft
+062b:0ae0+     _SB_OriginalVoiceVolumeRight
 0000:2000+     SB_Service_Mix22Khz_
 0000:2196+     SB_Service_Mix11Khz_
 0000:22bc+     SB_ServiceInterrupt_
@@ -239,18 +239,18 @@ Module: sqmussfx.obj(C:\SQMUS\sqmussfx.c)
 0000:296a      SB_Shutdown_
 0000:29b8+     SB_GetDSPVersion_
 0000:2a02      SB_InitCard_
-062b:0a98+     _SB_BUFFERS
-062b:0aa0+     _current_sampling_rate
-062b:0aa1+     _last_sampling_rate
-062b:0aa2+     _change_sampling_to_22_next_int
-062b:0aa3+     _change_sampling_to_11_next_int
-062b:0aa4*     _current_buffer_head
-062b:0aa5+     _IRQ_TO_INTERRUPT_MAP
-062b:0ab5+     _DMA_PortInfo
-062b:14e4+     _SB_DSP_Version
-062b:14e6+     _SB_CurrentDMABufferOffset
-062b:14e8+     _SB_DMABufferEndOffset
-062b:14ea+     _SB_Mixer_Status
+062b:0ae4+     _SB_BUFFERS
+062b:0aec+     _current_sampling_rate
+062b:0aed+     _last_sampling_rate
+062b:0aee+     _change_sampling_to_22_next_int
+062b:0aef+     _change_sampling_to_11_next_int
+062b:0af0*     _current_buffer_head
+062b:0af1+     _IRQ_TO_INTERRUPT_MAP
+062b:0b01+     _DMA_PortInfo
+062b:1566+     _SB_DSP_Version
+062b:1568+     _SB_CurrentDMABufferOffset
+062b:156a+     _SB_DMABufferEndOffset
+062b:156c+     _SB_Mixer_Status
 Module: dmx.obj(C:\SQMUS\dmx.c)
 0000:2ad0*     TS_FreeTaskList_
 0000:2ad2+     TS_SetClockSpeed_
@@ -261,13 +261,13 @@ Module: dmx.obj(C:\SQMUS\dmx.c)
 0000:2c5e      TS_ScheduleTask_
 0000:2c82      TS_Dispatch_
 0000:2c8c      TS_Shutdown_
-062b:0ad0+     _TaskServiceRate
-062b:0ad4+     _TS_Installed
-062b:0ad5+     _TS_InInterrupt
-062b:14f0+     _OldInt8
-062b:14f4+     _TaskServiceCount
-062b:14f8+     _TS_TimesInInterrupt
-062b:14fa+     _HeadTask
+062b:0b20+     _TaskServiceRate
+062b:0b24+     _TS_Installed
+062b:0b25+     _TS_InInterrupt
+062b:1570+     _OldInt8
+062b:1574+     _TaskServiceCount
+062b:1578+     _TS_TimesInInterrupt
+062b:157a+     _HeadTask
 Module: C:\WATCOM2\lib286\dos\clibs.lib(fread.c)
 0000:2cb8      fread_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(printf.c)
@@ -276,8 +276,8 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(exit.c)
 0000:2e68      __null_int23_exit_
 0000:2e69      exit_
 0000:2e85*     _exit_
-062b:0ad6      ___int23_exit
-062b:0ad8+     ___FPE_handler_exit
+062b:0b26      ___int23_exit
+062b:0b28+     ___FPE_handler_exit
 Module: C:\WATCOM2\lib286\dos\clibs.lib(fopen.c)
 0000:2e94+     __open_flags_
 0000:3034+     _fsopen_
@@ -289,14 +289,14 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(ftell.c)
 0000:327d      ftell_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(fmalloc.c)
 0000:32cb      _fmalloc_
-062b:0ada+     ___fheapbeg
-062b:0adc      ___fheapRover
-062b:0ade      ___LargestSizeB4Rover
+062b:0b2a+     ___fheapbeg
+062b:0b2c      ___fheapRover
+062b:0b2e      ___LargestSizeB4Rover
 Module: C:\WATCOM2\lib286\dos\clibs.lib(fclose.c)
 0000:33ad      __doclose_
 0000:343b      __shutdown_stream_
 0000:344c      fclose_
-062b:1508+     ___RmTmpFileFn
+062b:1588+     ___RmTmpFileFn
 Module: C:\WATCOM2\lib286\dos\clibs.lib(fgetc.c)
 0000:346e      __fill_buffer_
 0000:3523      fgetc_
@@ -328,10 +328,10 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(cmodel.asm)
 0000:3b40      _small_code_
 0000:3b40*     CodeModelMismatch
 Module: C:\WATCOM2\lib286\dos\clibs.lib(argcv.c)
-062b:150a      __argc
-062b:150c      __argv
-062b:150e      ___argc
-062b:1510      ___argv
+062b:158a      __argc
+062b:158c      __argv
+062b:158e      ___argc
+062b:1590      ___argv
 Module: C:\WATCOM2\lib286\dos\clibs.lib(chainint)
 0000:3b40      _chain_intr_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(d_setvec.c)
@@ -342,13 +342,13 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(qread.c)
 0000:3b78      __qread_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(errno.c)
 0000:3b8e      __get_errno_ptr_
-062b:1512+     _errno
+062b:1592+     _errno
 Module: C:\WATCOM2\lib286\dos\clibs.lib(ioalloc.c)
 0000:3b92      __ioalloc_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(iob.c)
-062b:0afe      ___iob
-062b:1514      ___OpenStreams
-062b:1516      ___ClosedStreams
+062b:0b4e      ___iob
+062b:1594      ___OpenStreams
+062b:1596      ___ClosedStreams
 Module: C:\WATCOM2\lib286\dos\clibs.lib(fprtf.c)
 0000:3c0f      __fprtf_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(initrtns.c)
@@ -358,9 +358,9 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(initrtns.c)
 0000:3d37      __FiniRtns
 Module: C:\WATCOM2\lib286\dos\clibs.lib(comtflag.c)
 0000:3d95*     __set_commode_
-062b:0c16      __commode
+062b:0c66      __commode
 Module: C:\WATCOM2\lib286\dos\clibs.lib(textmode.c)
-062b:0c18      __fmode
+062b:0c68      __fmode
 Module: C:\WATCOM2\lib286\dos\clibs.lib(tolower.c)
 0000:3d9c      tolower_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(open.c)
@@ -393,9 +393,9 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(fmemneed.c)
 Module: C:\WATCOM2\lib286\dos\clibs.lib(nmalloc.c)
 0000:4573      _nmalloc_
 0000:4573      malloc_
-062b:0c1a      ___nheapbeg
-062b:0c1c      ___MiniHeapRover
-062b:0c1e      ___LargestSizeB4MiniHeapRover
+062b:0c6a      ___nheapbeg
+062b:0c6c      ___MiniHeapRover
+062b:0c6e      ___LargestSizeB4MiniHeapRover
 Module: C:\WATCOM2\lib286\dos\clibs.lib(__lseek.c)
 0000:462c      __lseek_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(_clse.c)
@@ -403,34 +403,34 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(_clse.c)
 Module: C:\WATCOM2\lib286\dos\clibs.lib(nfree.c)
 0000:4696      _nfree_
 0000:4696      free_
-062b:1518+     ___MiniHeapFreeRover
+062b:1598+     ___MiniHeapFreeRover
 Module: C:\WATCOM2\lib286\dos\clibs.lib(flushall.c)
 0000:4759      __flushall_
 0000:478a      flushall_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(gtche.c)
 0000:478f      getche_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(crwdata)
-062b:0c20      __curbrk
-062b:0c28      __STACKLOW
-062b:0c2a      __STACKTOP
-062b:0c2c      __cbyte
-062b:0c2e      __child
-062b:0c30      __no87
-062b:0c3d      ___FPE_handler
-062b:0c22      __psp
-062b:0c31      __get_ovl_stack
-062b:0c35      __restore_ovl_stack
-062b:0c39      __close_ovl_file
-062b:0c41      __LpCmdLine
-062b:0c45      __LpPgmName
-062b:0c24      __osmajor
-062b:0c25      __osminor
-062b:0c26      __osmode
-062b:0c27      __HShift
+062b:0c70      __curbrk
+062b:0c78      __STACKLOW
+062b:0c7a      __STACKTOP
+062b:0c7c      __cbyte
+062b:0c7e      __child
+062b:0c80      __no87
+062b:0c8d      ___FPE_handler
+062b:0c72      __psp
+062b:0c81      __get_ovl_stack
+062b:0c85      __restore_ovl_stack
+062b:0c89      __close_ovl_file
+062b:0c91      __LpCmdLine
+062b:0c95      __LpPgmName
+062b:0c74      __osmajor
+062b:0c75      __osminor
+062b:0c76      __osmode
+062b:0c77      __HShift
 Module: C:\WATCOM2\lib286\dos\clibs.lib(abort.c)
 0000:47a4*     abort_
 0000:47af      __terminate_
-062b:0c4a      ___abort
+062b:0c9a      ___abort
 Module: C:\WATCOM2\lib286\dos\clibs.lib(sigsy.c)
 0000:483a      __restore_int23_
 0000:488b      __restore_int_ctrl_break_
@@ -452,7 +452,7 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(xmsg.c)
 Module: C:\WATCOM2\lib286\dos\clibs.lib(cmain086.c)
 0000:54e4      __CMain
 Module: C:\WATCOM2\lib286\dos\clibs.lib(uselfn.c)
-062b:0c54      ___uselfn
+062b:0ca4      ___uselfn
 Module: C:\WATCOM2\lib286\dos\clibs.lib(dosseg)
 0000:54f2      __DOSseg__
 Module: C:\WATCOM2\lib286\dos\clibs.lib(initargv.c)
@@ -469,25 +469,25 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(ioexit.c)
 Module: C:\WATCOM2\lib286\dos\clibs.lib(fputc.c)
 0000:57e3      fputc_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(sgdef086)
-062b:0ca6      __Start_XI
-062b:0cb8      __End_XI
-062b:0cb8      __Start_YI
-062b:0cca      __End_YI
+062b:0cf6      __Start_XI
+062b:0d08      __End_XI
+062b:0d08      __Start_YI
+062b:0d1a      __End_YI
 Module: C:\WATCOM2\lib286\dos\clibs.lib(opendos.c)
 0000:588c      _dos_open_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(iomode.c)
 0000:58a0      __GetIOMode_
 0000:58b7      __SetIOMode_nogrow_
-062b:0c6a      ___NFiles
-062b:0c6c      ___init_mode
-062b:0c94      ___io_mode
+062b:0cba      ___NFiles
+062b:0cbc      ___init_mode
+062b:0ce4      ___io_mode
 Module: C:\WATCOM2\lib286\dos\clibs.lib(isatt.c)
 0000:58cc      isatty_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(doserrno.c)
 0000:58e8      __get_doserrno_ptr_
-062b:151c+     __doserrno
+062b:159c+     __doserrno
 Module: C:\WATCOM2\lib286\dos\clibs.lib(umaskval.c)
-062b:0c96      ___umaskval
+062b:0ce6      ___umaskval
 Module: C:\WATCOM2\lib286\dos\clibs.lib(creatdos.c)
 0000:58ec      _dos_creat_
 0000:58fe*     _dos_creatnew_
@@ -501,9 +501,9 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(fsync.c)
 0000:5a5a      fsync_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(heapen.c)
 0000:5a5d*     _heapenable_
-062b:0c98      ___heap_enabled
+062b:0ce8      ___heap_enabled
 Module: C:\WATCOM2\lib286\dos\clibs.lib(amblksiz.c)
-062b:0c9a      __amblksiz
+062b:0cea      __amblksiz
 Module: C:\WATCOM2\lib286\dos\clibs.lib(nmemneed.c)
 0000:5a69      __nmemneed_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(grownear.c)
@@ -515,8 +515,8 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(itoa.c)
 0000:5c29+     utoa_
 0000:5c6e      itoa_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(noefgfmt.c)
-062b:0c9c      ___EFG_printf
-062b:0c9e*     ___EFG_scanf
+062b:0cec      ___EFG_printf
+062b:0cee*     ___EFG_scanf
 Module: C:\WATCOM2\lib286\dos\clibs.lib(lltoa.c)
 0000:5c96      ulltoa_
 0000:5d5a*     lltoa_
@@ -526,18 +526,18 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(ltoa.c)
 0000:5dcd      ultoa_
 0000:5e20*     ltoa_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(mbisdbcs.c)
-062b:0ca0      ___IsDBCS
+062b:0cf0      ___IsDBCS
 Module: C:\WATCOM2\lib286\dos\clibs.lib(mbislead.c)
 0000:5e40*     _ismbblead_
-062b:1520      ___MBCSIsTable
+062b:15a0      ___MBCSIsTable
 Module: C:\WATCOM2\lib286\dos\clibs.lib(enterdb.c)
 0000:5e55      __EnterWVIDEO_
-062b:0ca2+     __WD_Present
+062b:0cf2+     __WD_Present
 Module: C:\WATCOM2\lib286\dos\clibs.lib(___argc.c)
-062b:1622      ____Argv
-062b:1624      ____Argc
+062b:16a2      ____Argv
+062b:16a4      ____Argc
 Module: C:\WATCOM2\lib286\dos\clibs.lib(histsplt.c)
-062b:1626      ___historical_splitparms
+062b:16a6      ___historical_splitparms
 Module: C:\WATCOM2\lib286\dos\clibs.lib(error086.asm)
 0000:5e72      __doserror_
 0000:5e7e*     __doserror1_
@@ -554,10 +554,10 @@ Module: C:\WATCOM2\lib286\dos\clibs.lib(sbrk.c)
 0000:5f4c      __brk_
 0000:5fa0*     sbrk_
 Module: C:\WATCOM2\lib286\dos\clibs.lib(alphabet.c)
-062b:06bc      ___Alphabet
+062b:06fc      ___Alphabet
 Module: C:\WATCOM2\lib286\dos\clibs.lib(mbinit.c)
 0000:6003      __mbinit_
-062b:0ca4+     ___MBCodePage
+062b:0cf4+     ___MBCodePage
 Module: C:\WATCOM2\lib286\dos\clibs.lib(nmsize.c)
 0000:606a*     _msize_
 0000:606a      _nmsize_
@@ -586,6 +586,6 @@ C:\WATCOM2\lib286\dos\clibs.lib
                         +-----------------------+
 
 Stack size:  0300 (768.)
-Memory size:  7be0 (31712.)
+Memory size:  7c60 (31840.)
 Entry point address: 0000:38a8
-Link time: 00:00.39
+Link time: 00:00.85

@@ -105,7 +105,7 @@ void SB_StopPlayback();
 
 #define NUM_SFX_TO_MIX 8
 
-#define NUM_SFX_LUMPS 5
+#define NUM_SFX_LUMPS 10
 
 
 typedef struct {
