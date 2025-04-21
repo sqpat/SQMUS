@@ -234,6 +234,7 @@ void MUS_ServiceRoutine(){
 	if (finishplaying){
 		return;
 	}	
+	
 /*
 	if (playingpcspeakersfx) {
 
@@ -675,6 +676,7 @@ byte __far* SB_BUFFERS[2] = {
 uint8_t 				current_sampling_rate = SAMPLE_RATE_11_KHZ_FLAG;
 uint8_t 				last_sampling_rate	  = SAMPLE_RATE_11_KHZ_FLAG;
 int8_t 					change_sampling_to_22_next_int = 0;
+int8_t 					change_sampling_to_11_next_int = 0;
 
 
 
@@ -707,6 +709,102 @@ void SB_DSP1xx_BeginPlayback();
 
 void SB_Service_Mix22Khz(){
 	
+	int8_t i;
+	int8_t sound_played = false;	// first sound copies. 2nd and more add. if no sounds played, clear buffer.
+	int8_t remaining_22khz = false;	
+
+	for (i = 0; i < NUM_SFX_TO_MIX; i++){
+
+		if (!sb_voicelist[i].playing){
+			// printf("sound done!");
+
+		} else {
+			if (sb_voicelist[i].samplerate){
+				sb_voicelist[i].currentsample += SB_TransferLength;
+				remaining_22khz = true;
+			} else {
+				sb_voicelist[i].currentsample += SB_TransferLength/2;
+			}
+
+			// Keep track of current buffer
+			//printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
+
+			if (sb_voicelist[i].currentsample >= sb_voicelist[i].length){
+				// sound done playing. 
+				// printf(" end sound!");
+				sb_voicelist[i].playing = false;
+				// SB_CurrentDMABufferOffset = 0;
+				//_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_TransferLength*2);
+			} else {
+				uint8_t __far * baseloc = MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset);
+				uint8_t __far * source  = sb_voicelist[i].location + sb_voicelist[i].currentsample;
+				uint16_t j;
+
+
+				// MANUAL MIX?
+				
+				//_fmemcpy(MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), sb_voicelist[i].location + fileoffset, SB_TransferLength);
+				
+				if (!sound_played){
+					// first sound copied...
+					// _fmemcpy(baseloc, source, SB_TransferLength);
+					if (sb_voicelist[i].samplerate){
+						_fmemcpy(baseloc, source, SB_TransferLength);
+					} else {
+						for (j = 0; j < SB_TransferLength/2; j++){
+							baseloc[2*j]   = source[j];
+							baseloc[2*j+1] = source[j];
+						}
+					}
+
+				} else {
+					// subsequent sounds added
+					// obviously needs imrpovement...
+
+					if (sb_voicelist[i].samplerate){
+						for (j = 0; j < SB_TransferLength; j++){
+							int16_t total = baseloc[j] + source[j];
+							baseloc[j] = total >> 1;
+						}
+
+					} else {
+						for (j = 0; j < SB_TransferLength/2; j++){
+							int16_t total = baseloc[2*j] + source[j];
+							baseloc[2*j] = total >> 1;
+							total = baseloc[2*j+1] + source[j];
+							baseloc[2*j+1] = total >> 1;
+						}
+
+					}
+
+				}
+				sound_played++;
+
+				// printf(" %lx %x %i", MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), SB_DMABufferEndOffset, SB_CurrentDMABufferOffset);
+
+			}
+
+		}
+		if (!sound_played){
+			_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_TotalBufferSize);
+
+		}
+
+		// Call the caller's callback function
+		// if (SB_CallBack != NULL) {
+		//     MV_ServiceVoc();
+		// }
+
+		// send EOI to Interrupt Controller
+
+	}	// end for loop
+
+	if (!remaining_22khz){
+		change_sampling_to_11_next_int = true;
+		printf("\n turning on 11 khz next int");
+
+	}
+
 }
 
 
@@ -716,63 +814,63 @@ void SB_Service_Mix11Khz(){
 
 	for (i = 0; i < NUM_SFX_TO_MIX; i++){
 
-	if (!sb_voicelist[i].playing){
-		// printf("sound done!");
+		if (!sb_voicelist[i].playing){
+			// printf("sound done!");
 
-	} else {
-		sb_voicelist[i].currentsample += SB_TransferLength;
-
-		// Keep track of current buffer
-		//printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
-
-		if (sb_voicelist[i].currentsample >= sb_voicelist[i].length){
-			// sound done playing. 
-			// printf(" end sound!");
-			sb_voicelist[i].playing = false;
-			// SB_CurrentDMABufferOffset = 0;
-			//_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_TransferLength*2);
 		} else {
-			uint8_t __far * baseloc = MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset);
-			uint8_t __far * source  = sb_voicelist[i].location + sb_voicelist[i].currentsample;
-			uint16_t j;
+			sb_voicelist[i].currentsample += SB_TransferLength;
 
+			// Keep track of current buffer
+			//printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
 
-			// MANUAL MIX?
-			
-			//_fmemcpy(MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), sb_voicelist[i].location + fileoffset, SB_TransferLength);
-			
-			if (!sound_played){
-				// first sound copied...
-				_fmemcpy(baseloc, source, SB_TransferLength);
+			if (sb_voicelist[i].currentsample >= sb_voicelist[i].length){
+				// sound done playing. 
+				// printf(" end sound!");
+				sb_voicelist[i].playing = false;
+				// SB_CurrentDMABufferOffset = 0;
+				//_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_TransferLength*2);
 			} else {
-				// subsequent sounds added
-				// obviously needs imrpovement...
-				for (j = 0; j < SB_TransferLength; j++){
-					int16_t total = baseloc[j] + source[j];
-					baseloc[j] = total >> 1;
+				uint8_t __far * baseloc = MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset);
+				uint8_t __far * source  = sb_voicelist[i].location + sb_voicelist[i].currentsample;
+				uint16_t j;
+
+
+				// MANUAL MIX?
+				
+				//_fmemcpy(MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), sb_voicelist[i].location + fileoffset, SB_TransferLength);
+				
+				if (!sound_played){
+					// first sound copied...
+					_fmemcpy(baseloc, source, SB_TransferLength);
+				} else {
+					// subsequent sounds added
+					// obviously needs imrpovement...
+					for (j = 0; j < SB_TransferLength; j++){
+						int16_t total = baseloc[j] + source[j];
+						baseloc[j] = total >> 1;
+					}
+
 				}
+				sound_played++;
+
+				// printf(" %lx %x %i", MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), SB_DMABufferEndOffset, SB_CurrentDMABufferOffset);
 
 			}
-			sound_played++;
 
-			// printf(" %lx %x %i", MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), SB_DMABufferEndOffset, SB_CurrentDMABufferOffset);
+		}
+		if (!sound_played){
+			_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_TotalBufferSize);
 
 		}
 
-	}
-	if (!sound_played){
-		_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_TotalBufferSize);
+		// Call the caller's callback function
+		// if (SB_CallBack != NULL) {
+		//     MV_ServiceVoc();
+		// }
 
-	}
+		// send EOI to Interrupt Controller
 
-	// Call the caller's callback function
-	// if (SB_CallBack != NULL) {
-	//     MV_ServiceVoc();
-	// }
-
-	// send EOI to Interrupt Controller
-
-}	// end for loop
+	}	// end for loop
 }
 
 
@@ -786,10 +884,20 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 
 	if (change_sampling_to_22_next_int){
 		change_sampling_to_22_next_int = 0;
+		change_sampling_to_11_next_int = 0;
 		if (current_sampling_rate == SAMPLE_RATE_11_KHZ_FLAG){
 			current_sampling_rate = SAMPLE_RATE_22_KHZ_FLAG;
 		}
 		printf("\n turned on 22 khz");
+		SB_SetPlaybackRate(SAMPLE_RATE_22_KHZ_UINT);
+	} else if (change_sampling_to_11_next_int){
+		change_sampling_to_11_next_int = 0;
+		if (current_sampling_rate == SAMPLE_RATE_22_KHZ_FLAG){
+			current_sampling_rate = SAMPLE_RATE_11_KHZ_FLAG;
+		}
+		printf("\n turned on 11 khz");
+		SB_SetPlaybackRate(SAMPLE_RATE_11_KHZ_UINT);
+
 	}
 
     // Acknowledge interrupt
