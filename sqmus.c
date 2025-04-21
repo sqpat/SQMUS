@@ -642,7 +642,7 @@ int16_t main(int16_t argc, int8_t** argv) {
 				fclose(fp);
 				
 			
-				printmessage("Loaded pcm sfx %s into memory location 0x%lx successfully...\n", sfxfilename[i], sb_sfx_info[i].location);
+				//printmessage("Loaded pcm sfx %s into memory location 0x%lx successfully...\n", sfxfilename[i], sb_sfx_info[i].location);
 
 
 
@@ -655,6 +655,7 @@ int16_t main(int16_t argc, int8_t** argv) {
 
 		if (SB_InitCard() == SB_OK){
 			if (SB_SetupPlayback() == SB_OK){
+				printf("\nSound Blaster SFX Engine Initailized!.. ");
 
 			} else {
 				printf("Error B\n");

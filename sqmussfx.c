@@ -57,7 +57,7 @@ uint16_t 	SB_TotalDMABufferSize;
 
 
 
-
+int8_t  SB_CardActive = false;
 int16_t_union SB_DSP_Version;
 uint8_t SB_MixerType = SB_TYPE_NONE;
 uint8_t SB_OriginalMidiVolumeLeft = 255;
@@ -65,6 +65,7 @@ uint8_t SB_OriginalMidiVolumeRight = 255;
 uint8_t SB_OriginalVoiceVolumeLeft = 255;
 uint8_t SB_OriginalVoiceVolumeRight = 255;
 
+byte __far * sbbuffer;
 
 
 // uint16_t SB_MixMode = 0; //SB_STEREO;
@@ -76,10 +77,6 @@ uint8_t SB_OriginalVoiceVolumeRight = 255;
 uint8_t SB_Mixer_Status;
 
 
-byte __far* SB_BUFFERS[2] = {
-	(byte __far*)0x84000000,	// todo change
-	(byte __far*)0x88000000
-};
 
 
 uint8_t 				current_sampling_rate = SAMPLE_RATE_11_KHZ_FLAG;
@@ -131,6 +128,15 @@ void SB_Service_Mix22Khz(){
 				uint8_t __far * baseloc = MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset);
 				uint8_t __far * source  = sb_voicelist[i].location + sb_voicelist[i].currentsample;
 				uint16_t j;
+                uint16_t copy_length = SB_DoubleBufferLength;
+                uint16_t remaining_length = sb_voicelist[i].length - sb_voicelist[i].currentsample;
+                uint16_t extra_zero_length = 0;
+                if (remaining_length < copy_length){
+                    if (sound_played == 0){
+                        extra_zero_length = copy_length - remaining_length;
+                    }
+                    copy_length = remaining_length;
+                }
 
 
 				// MANUAL MIX?
@@ -141,26 +147,32 @@ void SB_Service_Mix22Khz(){
 					// first sound copied...
 					// _fmemcpy(baseloc, source, SB_DoubleBufferLength);
 					if (sb_voicelist[i].samplerate){
-						_fmemcpy(baseloc, source, SB_DoubleBufferLength);
+						_fmemcpy(baseloc, source, copy_length);
 					} else {
-						for (j = 0; j < SB_DoubleBufferLength/2; j++){
+						for (j = 0; j < copy_length/2; j++){
 							baseloc[2*j]   = source[j];
 							baseloc[2*j+1] = source[j];
 						}
 					}
+
+                    if (extra_zero_length){
+                        printf("\nzeroing extra %i", extra_zero_length);
+                        _fmemset(baseloc + copy_length, 0x80, extra_zero_length);
+                    }
+
 
 				} else {
 					// subsequent sounds added
 					// obviously needs imrpovement...
 
 					if (sb_voicelist[i].samplerate){
-						for (j = 0; j < SB_DoubleBufferLength; j++){
+						for (j = 0; j < copy_length; j++){
 							int16_t total = baseloc[j] + source[j];
 							baseloc[j] = total >> 1;
 						}
 
 					} else {
-						for (j = 0; j < SB_DoubleBufferLength/2; j++){
+						for (j = 0; j < copy_length/2; j++){
 							int16_t total = baseloc[2*j] + source[j];
 							baseloc[2*j] = total >> 1;
 							total = baseloc[2*j+1] + source[j];
@@ -282,9 +294,6 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 	int8_t i;
 	int8_t sample_rate_this_instance;
 	
-	// printf("\nINT CALLED");
-
-
 	if (change_sampling_to_22_next_int){
 		change_sampling_to_22_next_int = 0;
 		change_sampling_to_11_next_int = 0;
@@ -333,6 +342,15 @@ void __interrupt __far SB_ServiceInterrupt(void) {
     }
 
 
+	// Continue playback on cards without autoinit mode
+	if (SB_DSP_Version.hu < SB_DSP_Version2xx) {
+        if (SB_CardActive){
+            SB_DSP1xx_BeginPlayback();
+        }
+	}
+
+
+
 	// printf(" and playing %lx", MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset));
 
 	
@@ -363,19 +381,12 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 
 	last_sampling_rate = current_sampling_rate;
 
-	// Continue playback on cards without autoinit mode
-	if (SB_DSP_Version.hu < SB_DSP_Version2xx) {
-		if (sb_voicelist[i].playing) {
-			
-			SB_DSP1xx_BeginPlayback();
-		}
-	}
 
-		if (sb_irq > 7){
-			outp(0xA0, 0x20);
-		}
+    if (sb_irq > 7){
+        outp(0xA0, 0x20);
+    }
 
-		outp(0x20, 0x20);
+    outp(0x20, 0x20);
 }
 
 
@@ -498,8 +509,21 @@ void SB_SetPlaybackRate(int16_t sample_rate){
 }
 
 void SB_SetMixMode(){
-	// todo: some soundblasters (sb pro but not sb16?) 
-	// require setting mix mode for mono/stereo
+    // todo is this even needed?
+/*
+    //todo sb pro check
+
+    //sb pro needs to set mixer to mono?
+    uint8_t data;
+
+    outp(sb_port+SB_MixerAddressPort, 0x0E);
+    // make sure stereo is off
+    data = inp(sb_port+SB_MixerDataPort);
+    data &= ~0x02;  // turn off stereo flag...
+    outp(sb_port+SB_MixerDataPort, 0x0E);
+    SB_SetPlaybackRate(SAMPLE_RATE_11_KHZ_UINT);
+    */
+
 
 }
 
@@ -538,9 +562,9 @@ uint8_t IRQ_TO_INTERRUPT_MAP[16] =
 #define SB_DSP_Continue16bitTransfer 	0xD6
 #define SB_DSP_Reset 					0xFFFF
 
-uint16_t SB_HaltTransferCommand;
 
 
+// todo hardcode these params, writes
 void SB_DSP1xx_BeginPlayback() {
     int16_t_union sample_length;
 	sample_length.hu = SB_MixBufferSize - 1;
@@ -550,8 +574,7 @@ void SB_DSP1xx_BeginPlayback() {
     SB_WriteDSP(sample_length.bu.bytelow);
     SB_WriteDSP(sample_length.bu.bytehigh);
 
-    SB_HaltTransferCommand = SB_DSP_Halt8bitTransfer;
-
+    
 
 }
 
@@ -566,7 +589,6 @@ void SB_DSP2xx_BeginPlayback() {
 
 
 	SB_WriteDSP(0x1C);	// SB DAC init, 8 bit auto init
-	SB_HaltTransferCommand = SB_DSP_Halt8bitTransfer;
 
 
 
@@ -576,8 +598,7 @@ void SB_DSP4xx_BeginPlayback() {
     int16_t_union sample_length;
 	sample_length.hu = SB_MixBufferSize - 1;
 
-	SB_HaltTransferCommand = SB_DSP_Halt8bitTransfer;
-
+	
 
     // Program DSP to play sound
     SB_WriteDSP(0xC6);	// 8 bit dac
@@ -587,9 +608,6 @@ void SB_DSP4xx_BeginPlayback() {
 
 
 }
-
-#define DMA_INVALID
-#define DMA_VALID
 
 typedef struct
 {
@@ -624,7 +642,7 @@ int8_t SB_DMA_VerifyChannel(uint8_t channel) {
     //printf("channel used %i", channel);
 	if (channel > DMA_MaxChannel_16_BIT) {
         return DMA_ERROR;
-    } else if (channel == 2 || channel == 4) {	// invalid dma channels
+    } else if (channel == 2 || channel == 4) {	// invalid dma channels i guess
         return DMA_ERROR;
     }
 
@@ -752,6 +770,7 @@ void SB_EnableInterrupt() {
         mask = inp(0x21) & ~(1 << sb_irq);
         outp(0x21, mask);
     } else {
+
         mask = inp(0xA1) & ~(1 << (sb_irq - 8));
         outp(0xA1, mask);
 
@@ -763,17 +782,36 @@ void SB_EnableInterrupt() {
 
 int8_t SB_SetupPlayback(){
 	// todo double?
-	
+    fixed_t_union addr;
 	SB_StopPlayback();
     SB_SetMixMode();
 
-    if (SB_SetupDMABuffer(SB_BUFFERS[0], SB_TotalBufferSize)){
+    // todo why does malloc create garbage noise???
+    // addr.wu = (uint32_t) _fmalloc(4*SB_TotalBufferSize + 15);  // add 15 bytes...
+    addr.wu = 0x60000000;
+    // round up to seg
+
+    if (addr.wu & 0x0F){
+        addr.wu += 0x10;
+        addr.wu -= (addr.wu & 0x0F);
+    }
+    
+
+    addr.hu.intbits += (addr.hu.fracbits >> 4);
+    addr.hu.fracbits = 0;
+
+    sbbuffer = (byte __far*)addr.wu;
+    //
+    if (SB_SetupDMABuffer(sbbuffer, SB_TotalBufferSize)){
         return SB_Error;
     }
+    printf ("  %x", SB_DMABufferSegment);
+    _fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_TotalBufferSize);
 
     SB_SetPlaybackRate(SAMPLE_RATE_11_KHZ_UINT);
 
     SB_EnableInterrupt();
+
 
 	// Turn on Speaker
     SB_WriteDSP(0xD1);
@@ -789,6 +827,7 @@ int8_t SB_SetupPlayback(){
     } else {
         SB_DSP4xx_BeginPlayback();
     }
+    SB_CardActive = true;
 
     return SB_OK;
 
@@ -799,7 +838,6 @@ int8_t SB_DMA_EndTransfer(int8_t channel) {
 
     if (SB_DMA_VerifyChannel(channel) == DMA_OK) {
 
-
     // int Mask;	0x0A, 0xD4
     // int Mode;	0x0B, 0xD6
     // int Clear;	0x0C, 0xD8
@@ -809,6 +847,7 @@ int8_t SB_DMA_EndTransfer(int8_t channel) {
 
         // Clear flip-flop to lower byte with any data
         outp(channel < 4 ? 	0x0C: 0xD8, 0);
+        printf("\nDMA Clear Channel OK");
 		return DMA_OK;
     }
 
@@ -838,11 +877,7 @@ void SB_StopPlayback(){
 
 	SB_DisableInterrupt();
 
-	if (SB_HaltTransferCommand == SB_DSP_Reset) {
-        SB_ResetDSP();
-    } else {
-        SB_WriteDSP(SB_HaltTransferCommand);
-    }
+    SB_WriteDSP(SB_DSP_Halt8bitTransfer);
 
     // Disable the DMA channel
     // if (SB_MixMode & SB_SIXTEEN_BIT){
@@ -855,7 +890,7 @@ void SB_StopPlayback(){
 
     // sfx_playing = false;
     SB_DMABuffer = NULL;
-
+    SB_CardActive = false;
 
 }
 
@@ -900,6 +935,7 @@ int8_t IRQ_RestoreVector(int8_t vector) {
 #define SB_MIXER_SBProVoice 0x04
 #define SB_MIXER_SBProMidi 0x26
 #define SB_MIXER_SB16VoiceLeft 0x32
+#define SB_SBProVoice 0x04
 #define SB_MIXER_SB16VoiceRight 0x33
 #define SB_MIXER_SB16MidiLeft 0x34
 #define SB_MIXER_SB16MidiRight 0x35
@@ -965,6 +1001,21 @@ void SB_Shutdown(){
 
 
 }
+
+
+
+void SB_SetVolume(uint8_t volume){
+    if (SB_MixerType == SB_TYPE_SB16) {
+        SB_WriteMixer(SB_MIXER_SB16VoiceLeft, volume & 0xf8);
+        SB_WriteMixer(SB_MIXER_SB16VoiceRight, volume & 0xf8);
+  
+    } else if (SB_MixerType == SB_TYPE_SBPro){
+        SB_WriteMixer(SB_SBProVoice, (volume & 0xF) + (volume >> 4));
+
+    } 
+}
+
+
 
 
 uint16_t SB_GetDSPVersion() {
