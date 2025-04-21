@@ -32,6 +32,7 @@ enum SB_ERRORS
 #define SB_TotalBufferSize  (SB_MixBufferSize * SB_NumberOfBuffers)
 
 #define SB_TransferLength SB_MixBufferSize
+#define SB_DoubleBufferLength SB_TransferLength * 2
 
 #define SAMPLE_RATE_11_KHZ_UINT 11025
 #define SAMPLE_RATE_22_KHZ_UINT 22050

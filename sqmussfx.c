@@ -123,7 +123,7 @@ void SB_Service_Mix22Khz(){
 				// printf(" end sound!");
 				sb_voicelist[i].playing = false;
 				// SB_CurrentDMABufferOffset = 0;
-				//_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_TransferLength*2);
+				//_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_DoubleBufferLength*2);
 			} else {
 				uint8_t __far * baseloc = MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset);
 				uint8_t __far * source  = sb_voicelist[i].location + sb_voicelist[i].currentsample;
@@ -132,15 +132,15 @@ void SB_Service_Mix22Khz(){
 
 				// MANUAL MIX?
 				
-				//_fmemcpy(MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), sb_voicelist[i].location + fileoffset, SB_TransferLength);
+				//_fmemcpy(MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), sb_voicelist[i].location + fileoffset, SB_DoubleBufferLength);
 				
 				if (!sound_played){
 					// first sound copied...
-					// _fmemcpy(baseloc, source, SB_TransferLength);
+					// _fmemcpy(baseloc, source, SB_DoubleBufferLength);
 					if (sb_voicelist[i].samplerate){
-						_fmemcpy(baseloc, source, SB_TransferLength);
+						_fmemcpy(baseloc, source, SB_DoubleBufferLength);
 					} else {
-						for (j = 0; j < SB_TransferLength/2; j++){
+						for (j = 0; j < SB_DoubleBufferLength/2; j++){
 							baseloc[2*j]   = source[j];
 							baseloc[2*j+1] = source[j];
 						}
@@ -151,13 +151,13 @@ void SB_Service_Mix22Khz(){
 					// obviously needs imrpovement...
 
 					if (sb_voicelist[i].samplerate){
-						for (j = 0; j < SB_TransferLength; j++){
+						for (j = 0; j < SB_DoubleBufferLength; j++){
 							int16_t total = baseloc[j] + source[j];
 							baseloc[j] = total >> 1;
 						}
 
 					} else {
-						for (j = 0; j < SB_TransferLength/2; j++){
+						for (j = 0; j < SB_DoubleBufferLength/2; j++){
 							int16_t total = baseloc[2*j] + source[j];
 							baseloc[2*j] = total >> 1;
 							total = baseloc[2*j+1] + source[j];
@@ -225,16 +225,14 @@ void SB_Service_Mix11Khz(){
 
 
 				// MANUAL MIX?
-				
-				//_fmemcpy(MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset), sb_voicelist[i].location + fileoffset, SB_TransferLength);
-				
+								
 				if (!sound_played){
 					// first sound copied...
-					_fmemcpy(baseloc, source, SB_TransferLength);
+					_fmemcpy(baseloc, source, SB_DoubleBufferLength);
 				} else {
 					// subsequent sounds added
 					// obviously needs imrpovement...
-					for (j = 0; j < SB_TransferLength; j++){
+					for (j = 0; j < SB_DoubleBufferLength; j++){
 						int16_t total = baseloc[j] + source[j];
 						baseloc[j] = total >> 1;
 					}
