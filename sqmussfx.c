@@ -208,7 +208,6 @@ void SB_Service_Mix11Khz(){
 
 		} else {
 			sb_voicelist[i].currentsample += SB_TransferLength;
-
 			// Keep track of current buffer
 			//printf("\nPlaying %lx size is %x", SB_CurrentDMABuffer, sfx_length);
 
@@ -221,18 +220,32 @@ void SB_Service_Mix11Khz(){
 			} else {
 				uint8_t __far * baseloc = MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset);
 				uint8_t __far * source  = sb_voicelist[i].location + sb_voicelist[i].currentsample;
-				uint16_t j;
+                uint16_t copy_length = SB_DoubleBufferLength;
+                uint16_t remaining_length = sb_voicelist[i].length - sb_voicelist[i].currentsample;
+                uint16_t extra_zero_length = 0;
+                if (remaining_length < copy_length){
+                    if (sound_played == 0){
+                        extra_zero_length = copy_length - remaining_length;
+                    }
+                    copy_length = remaining_length;
+                }
+
 
 
 				// MANUAL MIX?
 								
 				if (!sound_played){
 					// first sound copied...
-					_fmemcpy(baseloc, source, SB_DoubleBufferLength);
+					_fmemcpy(baseloc, source, copy_length);
+                    if (extra_zero_length){
+                        printf("\nzeroing extra %i", extra_zero_length);
+                        _fmemset(baseloc + copy_length, 0x80, extra_zero_length);
+                    }
 				} else {
+    				uint16_t j;
 					// subsequent sounds added
 					// obviously needs imrpovement...
-					for (j = 0; j < SB_DoubleBufferLength; j++){
+					for (j = 0; j < copy_length; j++){
 						int16_t total = baseloc[j] + source[j];
 						baseloc[j] = total >> 1;
 					}
