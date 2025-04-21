@@ -467,15 +467,34 @@ int16_t SB_ResetDSP(){
 }
 
 void SB_SetPlaybackRate(int16_t sample_rate){
-	// Set playback rate
-	SB_WriteDSP(SB_DSP_Set_DA_Rate);
-	SB_WriteDSP(sample_rate >> 8);
-	SB_WriteDSP(sample_rate & 0xFF);
+ 
+    if (SB_DSP_Version.hu < SB_DSP_Version4xx){
 
-	// Set recording rate
-	SB_WriteDSP(SB_DSP_Set_AD_Rate);
-	SB_WriteDSP(sample_rate >> 8);
-	SB_WriteDSP(sample_rate & 0xFF);
+        // Set playback rate
+        if (sample_rate == SAMPLE_RATE_22_KHZ_UINT){
+            SB_WriteDSP(0x40);
+            // SB_WriteDSP(0xE9);  // 22
+            SB_WriteDSP(0xD2);  // 22khz
+        } else {
+            SB_WriteDSP(0x40);
+            // SB_WriteDSP(0xD2);  // 11khz
+            SB_WriteDSP(0xA5);  // 11khz
+        }
+
+
+    } else{
+        int16_t_union sample_rate_bytes;
+        sample_rate_bytes.hu = sample_rate;
+        // Set playback rate
+        SB_WriteDSP(SB_DSP_Set_DA_Rate);
+        SB_WriteDSP(sample_rate_bytes.bu.bytehigh);
+        SB_WriteDSP(sample_rate_bytes.bu.bytelow);
+
+        // Set recording rate
+        SB_WriteDSP(SB_DSP_Set_AD_Rate);
+        SB_WriteDSP(sample_rate_bytes.bu.bytehigh);
+        SB_WriteDSP(sample_rate_bytes.bu.bytelow);
+    }
 }
 
 void SB_SetMixMode(){
@@ -585,6 +604,7 @@ typedef struct
 
 #define DMA_MaxChannel_16_BIT 7
 
+// todo do we need 16bit ports...? 
 DMA_PORT DMA_PortInfo[8] =
     {
         {0x87, 0x00, 0x01},
@@ -960,6 +980,7 @@ uint16_t SB_GetDSPVersion() {
     }
 
 	// SB_DSP_Version.hu = 0x101;
+    printf("DSP Version detected:  %x\n", SB_DSP_Version.hu);
 
     if (SB_DSP_Version.hu >= SB_DSP_Version4xx) {
         SB_MixerType = SB_TYPE_SB16;
