@@ -387,9 +387,10 @@ void SB_PlaySoundEffect(int8_t sfx_id){
             }
 
 
-            break;
+            return;
         }
     }
+    printf("\nNO CHANNELS FOUND");
     
 
 }
