@@ -351,7 +351,7 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 
 
 
-	// printf(" and playing %lx", MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset));
+	// printf("\n and playing %lx", MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset));
 
 	
 	// increment buffer
@@ -662,7 +662,7 @@ int16_t DMA_SetupTransfer(uint8_t channel, byte __far* address, uint16_t length)
 		fixed_t_union addr;
 		
 		addr.wu = (uint32_t)address;
-		addr.hu.fracbits = addr.hu.fracbits + (addr.hu.intbits << 4) & 0xFF00;  // equals offset (?)
+		addr.hu.fracbits = addr.hu.fracbits + (addr.hu.intbits << 4) & 0xFFFF;  // equals offset (?)
 		addr.hu.intbits = (addr.hu.intbits >> 4) & 0xFF00;		// equals page
 
 
@@ -787,8 +787,7 @@ int8_t SB_SetupPlayback(){
     SB_SetMixMode();
 
     // todo why does malloc create garbage noise???
-    // addr.wu = (uint32_t) _fmalloc(4*SB_TotalBufferSize + 15);  // add 15 bytes...
-    addr.wu = 0x60000000;
+    addr.wu = (uint32_t) _fmalloc(2*SB_TotalBufferSize + 15);  // add 15 bytes...
     // round up to seg
 
     if (addr.wu & 0x0F){
@@ -801,7 +800,7 @@ int8_t SB_SetupPlayback(){
     addr.hu.fracbits = 0;
 
     sbbuffer = (byte __far*)addr.wu;
-    //
+    printf ("\n buffer %lx", sbbuffer);
     if (SB_SetupDMABuffer(sbbuffer, SB_TotalBufferSize)){
         return SB_Error;
     }
