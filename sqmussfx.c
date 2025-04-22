@@ -877,7 +877,7 @@ void SB_StopPlayback(){
 
 	SB_DisableInterrupt();
 
-    SB_WriteDSP(SB_DSP_Halt8bitTransfer);
+    SB_WriteDSP(SB_DSP_Halt8bitTransfer);   // halt command
 
     // Disable the DMA channel
     // if (SB_MixMode & SB_SIXTEEN_BIT){
@@ -1049,7 +1049,7 @@ uint16_t SB_GetDSPVersion() {
 int16_t SB_InitCard(){
 	int8_t status;
 
-	//todo get these from environment variables
+	//todo get these from environment variables or config file.
 	sb_irq      = FIXED_SB_IRQ;
 	sb_dma_8    = FIXED_SB_DMA_8;
 	sb_dma_16   = FIXED_SB_DMA_16;
@@ -1067,8 +1067,8 @@ int16_t SB_InitCard(){
 		uint8_t sb_int;
 		uint8_t used_dma;
 		// sfx_playing = false;
-        SB_SaveVoiceVolume();
 		SB_GetDSPVersion();
+        SB_SaveVoiceVolume();
 
         SB_SetPlaybackRate(SAMPLE_RATE_11_KHZ_UINT);
         SB_SetMixMode();
