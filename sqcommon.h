@@ -188,4 +188,12 @@ inline uint16_t FastMul8u8u(uint8_t a, uint8_t b);
     value [ax];
 
 
+inline uint16_t FastIMul8u8u(int8_t a, int8_t b);
+#pragma aux FastIMul8u8u =   \
+"IMUL ah"  \
+    parm [al] [ah]       \
+    modify [ah al]   \
+    value [ax];
+
+
 #endif

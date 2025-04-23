@@ -115,6 +115,7 @@ typedef struct {
 	uint16_t			length;
 	uint16_t			currentsample;
 	int8_t 	 			playing;
+	int8_t 	 			volume;
 } SB_VoiceInfo ;
 
 
