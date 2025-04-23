@@ -51,9 +51,6 @@ int16_t     SB_IntController2Mask;
 
 byte __far* SB_DMABuffer;
 uint16_t  SB_DMABufferSegment;
-uint16_t  SB_DMABufferEndOffset;
-uint16_t  SB_CurrentDMABufferOffset;
-uint16_t 	SB_TotalDMABufferSize;
 
 
 
@@ -84,18 +81,9 @@ uint8_t 				last_sampling_rate	  = SAMPLE_RATE_11_KHZ_FLAG;
 int8_t 					change_sampling_to_22_next_int = 0;
 int8_t 					change_sampling_to_11_next_int = 0;
 
-int8_t   				current_sb_dma_buffer_index  = 0;
-int8_t   				in_last_buffer_index  = false;
+int8_t   				in_first_buffer  = true;
 
 
-typedef struct {
-
-    int8_t				current_playing_count;
-
-} SB_DMA_Buffer_Info ;
-
-SB_DMA_Buffer_Info 		sb_dma_buffer[SB_NumberOfBuffers];
-uint8_t 				current_buffer_head   = 0;
 
 
 void SB_Service_Mix22Khz(){
@@ -126,10 +114,9 @@ void SB_Service_Mix22Khz(){
 				// sound done playing. 
 				// printf(" end sound!");
 				sb_voicelist[i].playing = false;
-				// SB_CurrentDMABufferOffset = 0;
 				//_fmemset(MK_FP(SB_DMABufferSegment, 0), 0x80, SB_DoubleBufferLength*2);
 			} else {
-				uint8_t __far * dma_buffer = MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset);
+				uint8_t __far * dma_buffer = MK_FP(SB_DMABufferSegment, in_first_buffer ? 0 : SB_TransferLength);
 				uint8_t __far * source  = sb_voicelist[i].location + sb_voicelist[i].currentsample;
 				uint16_t j;
                 uint16_t copy_length = SB_DoubleBufferLength;
@@ -243,26 +230,28 @@ void SB_Service_Mix11Khz(){
 
 			} else {
                 uint16_t copy_length = SB_TransferLength;
-                uint16_t copy_offset = SB_CurrentDMABufferOffset;
+                uint16_t copy_offset;
                 int8_t   do_second_copy = false;
                 
                 // if not the first copy, just copy to the next buffer
                 if (sb_voicelist[i].currentsample){
-                    
-                    if (in_last_buffer_index){
-                        copy_offset = 0;
+                    // copy only to doubled buffer
+                    if (in_first_buffer){
+                        copy_offset = SB_TransferLength;    
                     } else {
-                        copy_offset += SB_TransferLength;
+                        copy_offset = 0;
                     }
                 // if the first copy, copy two buffers worth.
                 } else {
                     // double buffer for first write!
                     // detect the run-over over the dma end buffer...
-                    if (in_last_buffer_index){
+                    
+                    if (!in_first_buffer){
                         do_second_copy = true;
+                        copy_offset = SB_TransferLength;
                     } else {
                         copy_length = SB_DoubleBufferLength;
-
+                        copy_offset = 0;
                     }
 
                 }
@@ -345,7 +334,7 @@ void SB_Service_Mix11Khz(){
                         
                         // todo generalize to larger #s than transfer length?
                         do_second_copy = false;
-        				printf("\ncaught while true!");
+        				// printf("\ncaught while true!");
                         remaining_length -= copy_length;
                         if (!remaining_length){
                             break;  // if the sfx was less than a sample long i guess.
@@ -390,13 +379,12 @@ void SB_Service_Mix11Khz(){
 void __interrupt __far SB_ServiceInterrupt(void) {
 	int8_t i;
 	int8_t sample_rate_this_instance;
-	current_sb_dma_buffer_index++;
-    if (current_sb_dma_buffer_index == SB_NumberOfBuffers){
-        current_sb_dma_buffer_index = 0;
-        in_last_buffer_index = false;
-    } else if (current_sb_dma_buffer_index == (SB_NumberOfBuffers - 1)){
-        in_last_buffer_index = true;
+    if (in_first_buffer){
+        in_first_buffer = false;
+    } else {
+        in_first_buffer = true;
     }
+
 	if (change_sampling_to_22_next_int){
 		change_sampling_to_22_next_int = 0;
 		change_sampling_to_11_next_int = 0;
@@ -457,12 +445,6 @@ void __interrupt __far SB_ServiceInterrupt(void) {
 	// printf("\n and playing %lx", MK_FP(SB_DMABufferSegment, SB_CurrentDMABufferOffset));
 
 	
-	// increment buffer
-	SB_CurrentDMABufferOffset += SB_TransferLength;
-	if (SB_CurrentDMABufferOffset >= SB_DMABufferEndOffset) {
-		// roll over buffer
-		SB_CurrentDMABufferOffset = 0;
-	}
 
 	if (sample_rate_this_instance == SAMPLE_RATE_22_KHZ_FLAG){
 
@@ -865,10 +847,7 @@ int8_t SB_SetupDMABuffer( byte __far *buffer, uint16_t buffer_size) {
 
     SB_DMABuffer 				= buffer;
 	SB_DMABufferSegment     	= FP_SEG(SB_DMABuffer);
-    SB_CurrentDMABufferOffset 	= 0;
-    SB_TotalDMABufferSize 		= buffer_size;
-    SB_DMABufferEndOffset 		= buffer_size;
-
+    
     return SB_OK;
 }
 

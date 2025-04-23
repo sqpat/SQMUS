@@ -28,8 +28,7 @@ enum SB_ERRORS
 
 // todo what does this mean
 #define SB_MixBufferSize    256
-#define SB_NumberOfBuffers  16
-#define SB_TotalBufferSize  (SB_MixBufferSize * SB_NumberOfBuffers)
+#define SB_TotalBufferSize  (SB_MixBufferSize * 2)
 
 #define SB_TransferLength SB_MixBufferSize
 #define SB_DoubleBufferLength SB_TransferLength * 2
